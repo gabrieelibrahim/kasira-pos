@@ -1,8 +1,9 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+// Kasira shared state — backed by Supabase realtime.
+// Orders, menu, and tables live in Postgres on the VPS; components read
+// them through this store and subscribe to changes via supabase channel.
 
-// Shared fixture + state for the Kasira MVP. In production this is a
-// realtime store; here a single React context serves as one source of
-// truth read and mutated by the cashier dashboard and the KDS alike.
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { supabase } from './supabase.js'
 
 export const STATUS = {
   PAYMENT: 'Menunggu pembayaran',
@@ -16,49 +17,111 @@ export const STATUS = {
 }
 
 export const isActionable = (o) => o.status === STATUS.PAYMENT || o.status === STATUS.CASHIER
-
-// Statuses currently on the kitchen board.
 export const isInProduction = (o) => [STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED, STATUS.DONE].includes(o.status)
-
-const seed = [
-  { id: 'KS-1048', table: 'Meja 12', items: 4, total: 186000, payment: 'QRIS terkonfirmasi', paymentTone: 'paid', station: 'dapur', status: STATUS.CASHIER, customer: 'Rina · 3 orang', note: 'Satu nasi goreng tanpa pedas, ya.', lines: [['Nasi Goreng Kampung', '2 × Rp42.000', 'Tanpa pedas'], ['Es Kopi Susu Gula Aren', '1 × Rp28.000', 'Less ice'], ['Tahu Cabe Garam', '1 × Rp32.000', '']] },
-  { id: 'KS-1047', table: 'Meja 04', items: 3, total: 124000, payment: 'Menunggu tunai', paymentTone: 'cash', station: 'dapur', status: STATUS.PAYMENT, customer: 'Dimas · 2 orang', note: 'Bayar di kasir sebelum pesanan diproses.', lines: [['Mie Ayam Sambal Matah', '1 × Rp38.000', 'Extra sambal'], ['Ayam Bakar Madu', '1 × Rp54.000', ''], ['Teh Sereh', '1 × Rp22.000', 'Hangat']] },
-  { id: 'KS-1046', table: 'Meja 21', items: 6, total: 298000, payment: 'QRIS terkonfirmasi', paymentTone: 'paid', station: 'bar', status: STATUS.CASHIER, customer: 'Aldo · 5 orang', note: 'Tolong antar minuman duluan.', lines: [['Paket Nasi Ayam Bakar', '3 × Rp62.000', '2 tanpa sambal'], ['Es Teh Lemon', '2 × Rp20.000', ''], ['Kentang Goreng', '1 × Rp32.000', 'Saus terpisah']] },
-  { id: 'KS-1045', table: 'Meja 08', items: 2, total: 90000, payment: 'QRIS terkonfirmasi', paymentTone: 'paid', station: 'dapur', status: STATUS.CASHIER, customer: 'Sari · 2 orang', note: '', lines: [['Soto Betawi', '1 × Rp58.000', ''], ['Air Mineral', '2 × Rp16.000', 'Dingin']] },
-  { id: 'KS-1044', table: 'Meja 17', items: 5, total: 210000, payment: 'QRIS terkonfirmasi', paymentTone: 'paid', station: 'dapur', status: STATUS.CASHIER, customer: 'Yoga · 4 orang', note: 'Pisahkan sambal dan acar.', lines: [['Iga Bakar Komplit', '2 × Rp78.000', ''], ['Jus Alpukat', '1 × Rp32.000', 'Tanpa gula'], ['Nasi Putih', '2 × Rp11.000', '']] },
-  // In production already
-  { id: 'KS-1042', table: 'Meja 15', items: 4, station: 'dapur', status: STATUS.READY, customer: 'Andi · 3 orang', note: 'Sambal terpisah', lines: [['Mie Goreng', '2 × Rp35.000', ''], ['Jus Mangga', '1 × Rp30.000', ''], ['Air Putih', '1 × Rp12.000', '']] },
-  { id: 'KS-1041', table: 'Meja 07', items: 2, station: 'bar', status: STATUS.SENT, customer: 'Budi · 1 orang', note: '', lines: [['Es Kopi Susu', '2 × Rp28.000', 'Less ice']] },
-  { id: 'KS-1040', table: 'Meja 02', items: 3, station: 'dapur', status: STATUS.PREP, customer: 'Caca · 2 orang', note: 'Tanpa bawang', lines: [['Ayam Bakar Madu', '1 × Rp54.000', ''], ['Nasi Putih', '1 × Rp11.000', ''], ['Es Teh', '1 × Rp18.000', 'Dingin']] },
-]
 
 const StoreContext = createContext(null)
 
+const normalizeOrder = (o) => ({
+  id: o.id,
+  table: o.table_label || 'Meja –',
+  customer: o.customer_name || 'Pelanggan',
+  note: o.note || '',
+  status: o.status,
+  total: Number(o.total || 0),
+  payment: o.payment_status === 'paid' ? (o.payment_method === 'cash' ? 'Tunai diterima' : 'QRIS terkonfirmasi') : (o.payment_method === 'cash' ? 'Menunggu tunai' : 'Menunggu QRIS'),
+  paymentTone: o.payment_status === 'paid' ? 'paid' : 'cash',
+  lines: Array.isArray(o.lines) ? o.lines : [],
+  station: 'dapur',
+  items: o.lines && o.lines.length ? o.lines.reduce((n, l) => n + (Number(l[1].match(/\d+/)?.[0]) || 1), 0) : 0,
+  age: 'baru saja',
+  created_at: o.created_at,
+})
+
 export function StoreProvider({ children }) {
-  const [orders, setOrders] = useState(seed)
+  const [orders, setOrders] = useState([])
+  const [menu, setMenu] = useState([])
+  const [tables, setTables] = useState([])
+  const [ready, setReady] = useState(false)
+  const [outletId, setOutletId] = useState(null)
+
+  // Boot: load outlet + seed data, then subscribe to realtime changes.
+  useEffect(() => {
+    let mounted = true
+    const channel = supabase
+      .channel('kasira-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+        if (mounted) setOrders((prev) => [normalizeOrder(payload.new), ...prev.filter((o) => o.id !== payload.new.id)])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
+        if (mounted) setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
+      })
+      .subscribe()
+
+    async function boot() {
+      const { data: out } = await supabase.from('outlets').select('id').limit(1)
+      const oid = out?.[0]?.id
+      if (mounted) setOutletId(oid)
+
+      const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
+        oid ? supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(30) : { data: [] },
+        supabase.from('menu_items').select('*').order('name'),
+        supabase.from('table_spots').select('*').order('number'),
+      ])
+      if (mounted) {
+        setOrders((o || []).map(normalizeOrder))
+        setMenu(m || [])
+        setTables(t || [])
+        setReady(true)
+      }
+    }
+    boot()
+
+    return () => {
+      mounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const value = useMemo(() => {
-    const update = (id, patch) => setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+    const update = async (id, patch) => {
+      await supabase.from('orders').update(patch).eq('id', id)
+      // optimistic local sync; realtime will confirm
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+    }
 
     return {
       orders,
+      menu,
+      tables,
+      ready,
+      outletId,
       accept: (id) => update(id, { status: STATUS.SENT }),
       markCashPaid: (id) => update(id, { payment: 'Tunai diterima', paymentTone: 'paid', status: STATUS.CASHIER }),
       reject: (id) => update(id, { status: STATUS.REJECTED }),
-      submitCustomerOrder: (order) => {
-        const id = `KS-${1000 + seed.length + Math.floor(Math.random() * 90)}`
-        const placed = { ...order, id, age: 'baru saja', minutes: 0, status: order.paymentTone === 'cash' ? STATUS.PAYMENT : STATUS.CASHIER }
-        setOrders((prev) => [...prev, placed])
-        return id
-      },
       advance: (id) => setOrders((prev) => prev.map((o) => {
         if (o.id !== id) return o
-        if (o.status === STATUS.SENT) return { ...o, status: STATUS.PREPARED }
-        if (o.status === STATUS.PREPARED) return { ...o, status: STATUS.READY }
-        return { ...o, status: STATUS.DONE }
+        const next = o.status === STATUS.SENT ? STATUS.PREP : o.status === STATUS.PREP ? STATUS.READY : STATUS.DONE
+        update(id, { status: next })
+        return { ...o, status: next }
       })),
+      submitCustomerOrder: async (order) => {
+        const { data, error } = await supabase.from('orders').insert({
+          outlet_id: outletId,
+          table_spot_id: null,
+          table_label: order.table,
+          customer_name: order.customer,
+          note: order.note,
+          status: order.paymentTone === 'cash' ? STATUS.PAYMENT : STATUS.CASHIER,
+          payment_method: order.paymentTone === 'cash' ? 'cash' : 'qris',
+          payment_status: order.paymentTone === 'cash' ? 'pending' : 'paid',
+          total: order.total,
+          lines: order.lines,
+        }).select('id').single()
+        if (error) throw error
+        return data.id
+      },
     }
-  }, [orders])
+  }, [orders, menu, tables, ready, outletId])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

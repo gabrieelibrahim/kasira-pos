@@ -26,22 +26,26 @@ const MENU = [
 ]
 
 function MenuCard({ item, onAdd }) {
+  const name = item.name
+  const price = Number(item.price || 0)
+  const desc = item.description || item.desc || ''
+  const mods = item.modifier || []
   return (
     <div className="menu-card">
-      <div className="menu-thumb" aria-hidden="true">{item.name.slice(0, 1)}</div>
+      <div className="menu-thumb" aria-hidden="true">{name.slice(0, 1)}</div>
       <div className="menu-body">
-        <h3>{item.name}</h3>
-        <p>{item.desc}</p>
-        <span className="menu-price">{money(item.price)}</span>
-        {item.modifier.length > 0 && <small className="menu-modifier">{item.modifier.length} pilihan tambahan</small>}
+        <h3>{name}</h3>
+        <p>{desc}</p>
+        <span className="menu-price">{money(price)}</span>
+        {mods.length > 0 && <small className="menu-modifier">{mods.length} pilihan tambahan</small>}
       </div>
-      <button type="button" className="menu-add" aria-label={`Tambah ${item.name}`} onClick={() => onAdd(item)}>+</button>
+      <button type="button" className="menu-add" aria-label={`Tambah ${name}`} onClick={() => onAdd(item)}>+</button>
     </div>
   )
 }
 
 function Customer() {
-  const { orders, submitCustomerOrder } = useStore()
+  const { orders, menu, submitCustomerOrder } = useStore()
   const [table] = useState(tableFromParams)
   const [route, setRoute] = useState('menu') // menu | cart | checkout | order
   const [cat, setCat] = useState('Semua')
@@ -57,7 +61,7 @@ function Customer() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [route])
 
-  const visibleMenu = MENU.filter((m) => cat === 'Semua' || m.cat === cat)
+  const visibleMenu = (menu.length ? menu : MENU).filter((m) => cat === 'Semua' || m.cat === cat)
 
   const addItem = (item) => {
     setCart((prev) => {
@@ -80,18 +84,17 @@ function Customer() {
   const submit = () => {
     if (cart.length === 0) return
     const lines = cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), ''])
-    const id = submitCustomerOrder({
+    submitCustomerOrder({
       table: tableName,
       items: cart.reduce((n, l) => n + l.qty, 0),
       total: subtotal,
-      payment: payment === 'qris' ? 'QRIS terkonfirmasi' : 'Menunggu tunai',
       paymentTone: payment === 'qris' ? 'paid' : 'cash',
       station: 'dapur',
       customer: 'Pelanggan meja',
       note: note.trim(),
       lines,
-    })
-    setPlacedId(id)
+    }).then((id) => setPlacedId(id))
+      .catch(() => setPlacedId(null))
     setJustPlaced(id)
     setCart([])
     setRoute('order')

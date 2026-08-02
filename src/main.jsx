@@ -1,16 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import Kds from './Kds'
 import './styles.css'
+
+const routeFromHash = () => window.location.hash.replace('#/', '') || 'kasir'
 
 const navItems = [
   { label: 'Ringkasan', icon: '◈' },
-  { label: 'Order masuk', icon: '↗', count: 7, active: true },
-  { label: 'Meja', icon: '▦' },
+  { label: 'Order masuk', icon: '↗', count: true, active: true },
+  { label: 'Layar dapur', icon: '▦', href: 'kds' },
   { label: 'Menu & stok', icon: '☷' },
   { label: 'Laporan', icon: '◒' },
 ]
 
-const initialOrders = [
+const ordersSeed = [
   {
     id: 'KS-1048', table: 'Meja 12', age: 'baru saja', minutes: 1, items: 4, total: 186000,
     payment: 'QRIS terkonfirmasi', paymentTone: 'paid', status: 'Menunggu konfirmasi',
@@ -81,8 +84,9 @@ function Icon({ name }) {
 }
 
 function App() {
-  const [orders, setOrders] = useState(initialOrders)
-  const [selectedId, setSelectedId] = useState(initialOrders[0].id)
+  const [route, setRoute] = useState(routeFromHash)
+  const [orders, setOrders] = useState(ordersSeed)
+  const [selectedId, setSelectedId] = useState(ordersSeed[0].id)
   const [filter, setFilter] = useState('Semua')
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
@@ -114,6 +118,12 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
+  useEffect(() => {
+    const onHashChange = () => setRoute(routeFromHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   const flash = (message) => {
     setNotice(message)
     window.setTimeout(() => setNotice(''), 2600)
@@ -138,7 +148,9 @@ function App() {
     updateOrder('Ditolak')
   }
 
-  const chooseNav = (label) => flash(`${label} akan tersedia pada modul berikutnya.`)
+  const go = (item) => item.href ? (window.location.hash = '#/' + item.href) : flash(`${item.label} akan tersedia pada modul berikutnya.`)
+
+  if (route === 'kds') return <Kds />
 
   if (!selected) {
     return <div className="app-shell"><aside className="sidebar">{/** navigation remains available in the full view */}</aside><main className="main-content"><header className="topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" /><b>Order masuk</b></div></header><div className="content-wrap"><div className="empty-workspace"><div className="empty-icon">✓</div><h1>Semua order sudah ditinjau</h1><p>Order baru dari meja pelanggan akan muncul di sini secara realtime.</p><button className="secondary-button" onClick={() => { setFilter('Semua'); setQuery('') }}>Tampilkan semua order</button></div></div></main></div>
@@ -149,8 +161,8 @@ function App() {
       <aside className="sidebar">
         <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
         <div className="outlet-switcher"><span className="live-dot" /> <span><b>Outlet Senopati</b><small>Shift pagi · Aktif</small></span><Icon name="chevron" /></div>
-        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} aria-current={item.active ? 'page' : undefined} aria-label={item.label} title={item.label} className={`nav-item ${item.active ? 'active' : ''}`} onClick={() => chooseNav(item.label)}><span className="nav-icon">{item.icon}</span><span>{item.label}</span>{item.count && <em>{pendingCount}</em>}</button>)}</nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" aria-label="Pengaturan" title="Pengaturan" onClick={() => chooseNav('Pengaturan')}><span className="nav-icon">◉</span><span>Pengaturan</span></button><div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><Icon name="arrow" /></div><div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><Icon name="more" /></div></div>
+        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} aria-current={item.active ? 'page' : undefined} aria-label={item.label} title={item.label} className={`nav-item ${item.active ? 'active' : ''}`} onClick={() => go(item)}><span className="nav-icon">{item.icon}</span><span>{item.label}</span>{item.count ? <em>{pendingCount}</em> : null}</button>)}</nav>
+        <div className="sidebar-bottom"><button type="button" className="nav-item" aria-label="Pengaturan" title="Pengaturan" onClick={() => flash('Pengaturan akan tersedia pada modul berikutnya.')}><span className="nav-icon">◉</span><span>Pengaturan</span></button><div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><Icon name="arrow" /></div><div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><Icon name="more" /></div></div>
       </aside>
 
       <main className="main-content">

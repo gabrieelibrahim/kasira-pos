@@ -45,6 +45,12 @@ export function StoreProvider({ children }) {
       accept: (id) => update(id, { status: STATUS.SENT }),
       markCashPaid: (id) => update(id, { payment: 'Tunai diterima', paymentTone: 'paid', status: STATUS.CASHIER }),
       reject: (id) => update(id, { status: STATUS.REJECTED }),
+      submitCustomerOrder: (order) => {
+        const id = `KS-${1000 + seed.length + Math.floor(Math.random() * 90)}`
+        const placed = { ...order, id, age: 'baru saja', minutes: 0, status: order.paymentTone === 'cash' ? STATUS.PAYMENT : STATUS.CASHIER }
+        setOrders((prev) => [...prev, placed])
+        return id
+      },
       advance: (id) => setOrders((prev) => prev.map((o) => {
         if (o.id !== id) return o
         if (o.status === STATUS.SENT) return { ...o, status: STATUS.PREPARED }

@@ -60,6 +60,67 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .kds-action:hover { background: var(--primary-hover); }
 .kds-empty { padding: 40px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--muted); text-align: center; font-size: 13px; }
 
+/* Customer QR portal */
+.customer { min-height: 100vh; background: var(--bg); }
+.customer-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px 22px; }
+.customer-brand { display: flex; align-items: center; gap: 10px; }
+.customer-brand strong, .customer-brand small { display: block; }
+.customer-brand strong { font-size: 17px; }
+.customer-brand small { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.customer-hint { color: var(--muted); font-size: 12px; }
+.customer-hero { max-width: 720px; margin: 0 auto; padding: 18px 22px 8px; }
+.customer-hero h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+.customer-hero p { margin: 7px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.cat-nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; max-width: 720px; margin: 18px auto 4px; padding: 8px 22px; overflow-x: auto; background: var(--bg); }
+.cat-nav button { flex: 0 0 auto; height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 99px; background: var(--surface-1); color: var(--muted); font-size: 13px; }
+.cat-nav button.selected { color: var(--ink); border-color: oklch(.57 .19 255 / .4); background: var(--primary-soft); }
+.menu-grid { display: grid; gap: 12px; max-width: 720px; margin: 0 auto; padding: 10px 22px 110px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.menu-card { position: relative; display: flex; gap: 13px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); }
+.menu-thumb { width: 56px; height: 56px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; color: white; background: linear-gradient(140deg, var(--primary), oklch(.57 .16 245)); font-size: 22px; font-weight: 700; }
+.menu-body { min-width: 0; }
+.menu-body h3 { margin: 0; font-size: 15px; }
+.menu-body p { margin: 4px 0 6px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.menu-price { color: var(--ink); font-size: 14px; font-weight: 700; }
+.menu-modifier { display: block; margin-top: 5px; color: var(--faint); font-size: 11px; }
+.menu-add { position: absolute; right: 12px; bottom: 12px; width: 30px; height: 30px; border: 0; border-radius: 50%; color: white; background: var(--primary); font-size: 18px; line-height: 1; }
+.menu-add:hover { background: var(--primary-hover); }
+.cart-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 12px 22px calc(12px + env(safe-area-inset-bottom)); background: oklch(1 0 0 / .9); backdrop-filter: blur(12px); border-top: 1px solid var(--border); }
+.cart-bar .primary-button { width: 100%; max-width: 720px; margin: 0 auto; }
+.customer-shell { max-width: 720px; margin: 0 auto; padding: 26px 22px 120px; }
+.customer-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.back-button { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-1); color: var(--ink); font-size: 18px; }
+.customer-header h1 { margin: 0; font-size: 22px; }
+.customer-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.checkout-summary { display: grid; gap: 11px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); }
+.checkout-total { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); }
+.checkout-total span { color: var(--muted); font-size: 13px; }
+.checkout-total strong { font-size: 20px; }
+.checkout-methods, .checkout-note { margin-top: 22px; }
+.checkout-methods h2, .checkout-note h2 { margin: 0 0 11px; font-size: 16px; }
+.pay-option { display: flex; gap: 12px; align-items: center; padding: 15px; margin-bottom: 9px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-1); cursor: pointer; }
+.pay-option.selected { border-color: oklch(.57 .19 255 / .5); background: var(--primary-soft); }
+.pay-option input { accent-color: var(--primary); width: 18px; height: 18px; }
+.pay-option b, .pay-option span { display: block; }
+.pay-option b { font-size: 14px; }
+.pay-option span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.checkout-note textarea { width: 100%; min-height: 70px; resize: vertical; padding: 11px; border: 1px solid var(--border); border-radius: 9px; outline: 0; color: var(--ink); background: var(--surface-1); font-size: 13px; }
+.checkout-note textarea:focus { border-color: var(--primary); }
+.checkout-submit { width: 100%; margin-top: 24px; }
+.order-track { display: flex; align-items: center; gap: 12px; }
+.order-track h1 { margin: 0; font-size: 22px; }
+.order-track p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.track-status { display: flex; gap: 12px; align-items: center; margin-top: 22px; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); }
+.track-status .status-dot-k { width: 10px; height: 10px; }
+.track-status b { display: block; font-size: 15px; }
+.track-status p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.track-lines { display: grid; gap: 12px; margin-top: 22px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); }
+.track-total { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 14px 2px 0; border-top: 1px solid var(--border); }
+.track-total span { color: var(--muted); font-size: 13px; }
+.track-total strong { font-size: 20px; }
+.track-actions { display: flex; gap: 10px; margin-top: 22px; }
+.track-actions .primary-button, .track-actions .secondary-button { flex: 1; }
+.muted-p { color: var(--muted); font-size: 13px; }
+
 @media (max-width: 1100px) { .sidebar { width: 218px; }.main-content { padding-left: 218px; }.topbar { padding: 0 26px; }.content-wrap { padding: 35px 26px 50px; }.workspace-grid { grid-template-columns: minmax(300px, .8fr) minmax(410px, 1.2fr); gap: 16px; }.detail-header, .detail-section { padding-left: 19px; padding-right: 19px; }.payment-banner { margin-left: 19px; margin-right: 19px; }.total-row { margin-left: 19px; margin-right: 19px; }.detail-actions { padding: 0 19px; }.keyboard-hint { margin-left: 19px; margin-right: 19px; } }
 @media (max-width: 820px) { .sidebar { width: 68px; padding: 20px 9px; }.brand-lockup { padding: 0 9px 26px; }.brand-lockup > div:last-child, .outlet-switcher > span:not(.live-dot), .outlet-switcher > .icon, .nav-item > span:not(.nav-icon), .nav-item em, .help-card, .user-row > span, .user-row > .icon { display: none; }.outlet-switcher { justify-content: center; margin: 0 0 24px; padding: 9px 0; border: 0; background: transparent; }.nav-item { justify-content: center; padding: 0; }.nav-label { display: none; }.user-row { justify-content: center; padding: 14px 0 0; }.main-content { padding-left: 68px; }.topbar { padding: 0 20px; }.connection { display: none; }.content-wrap { padding: 30px 20px 45px; }.workspace-grid { grid-template-columns: 1fr; }.detail-panel { position: relative; top: auto; }.queue-toolbar { align-items: stretch; flex-direction: column; }.search-field { width: 100%; }.page-heading { align-items: start; flex-direction: column; margin-bottom: 25px; }.secondary-button { width: 100%; justify-content: center; }.table-grid { grid-template-columns: repeat(6, 1fr); } }
 @media (max-width: 520px) { .topbar { height: 60px; padding: 0 14px; }.breadcrumb { font-size: 12px; }.top-actions { gap: 5px; }.content-wrap { padding: 25px 14px 38px; }.page-heading h1 { font-size: 26px; }.heading-sub { max-width: 32ch; line-height: 1.45; }.workspace-grid { gap: 14px; }.filter-tabs { width: 100%; }.filter-tabs button { flex: 1; }.ticket-middle { align-items: start; flex-direction: column; gap: 4px; }.detail-header { padding: 19px 16px 17px; }.detail-header h2 { font-size: 20px; }.detail-section { padding-left: 16px; padding-right: 16px; }.payment-banner { margin-left: 16px; margin-right: 16px; }.total-row { margin-left: 16px; margin-right: 16px; }.detail-actions { padding: 0 16px; }.keyboard-hint { margin-left: 16px; margin-right: 16px; }.table-grid { grid-template-columns: repeat(4, 1fr); }.table-cell { min-height: 52px; }.toast { left: 14px; right: 14px; bottom: 15px; } }

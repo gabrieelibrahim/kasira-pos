@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import Customer from './Customer'
 import Kds from './Kds'
 import { isActionable, money, StoreProvider, useStore } from './state.jsx'
 import './styles.css'
@@ -10,6 +11,7 @@ const navItems = [
   { label: 'Ringkasan', icon: '◈' },
   { label: 'Order masuk', icon: '↗', count: true, active: true },
   { label: 'Layar dapur', icon: '▦', href: 'kds' },
+  { label: 'Portal meja', icon: '◫', href: 'meja' },
   { label: 'Menu & stok', icon: '☷' },
   { label: 'Laporan', icon: '◒' },
 ]
@@ -100,6 +102,7 @@ function App() {
   const go = (item) => item.href ? (window.location.hash = '#/' + item.href) : flash(`${item.label} akan tersedia pada modul berikutnya.`)
 
   if (route === 'kds') return <Kds />
+  if (route === 'meja' || route === 'pelanggan') return <Customer />
 
   if (!selected) {
     return <div className="app-shell"><aside className="sidebar">{/** navigation remains available in the full view */}</aside><main className="main-content"><header className="topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" /><b>Order masuk</b></div></header><div className="content-wrap"><div className="empty-workspace"><div className="empty-icon">✓</div><h1>Semua order sudah ditinjau</h1><p>Order baru dari meja pelanggan akan muncul di sini secara realtime.</p><button className="secondary-button" onClick={() => { setFilter('Semua'); setQuery('') }}>Tampilkan semua order</button></div></div></main></div>

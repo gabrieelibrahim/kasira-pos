@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import Kds from './Kds'
+import { isActionable, money, StoreProvider, useStore } from './state.jsx'
 import './styles.css'
 
 const routeFromHash = () => window.location.hash.replace('#/', '') || 'kasir'
@@ -13,58 +14,6 @@ const navItems = [
   { label: 'Laporan', icon: '◒' },
 ]
 
-const ordersSeed = [
-  {
-    id: 'KS-1048', table: 'Meja 12', age: 'baru saja', minutes: 1, items: 4, total: 186000,
-    payment: 'QRIS terkonfirmasi', paymentTone: 'paid', status: 'Menunggu konfirmasi',
-    customer: 'Rina · 3 orang', note: 'Satu nasi goreng tanpa pedas, ya.',
-    lines: [
-      ['Nasi Goreng Kampung', '2 × Rp42.000', 'Tanpa pedas'],
-      ['Es Kopi Susu Gula Aren', '1 × Rp28.000', 'Less ice'],
-      ['Tahu Cabe Garam', '1 × Rp32.000', ''],
-    ],
-  },
-  {
-    id: 'KS-1047', table: 'Meja 04', age: '2 menit lalu', minutes: 2, items: 3, total: 124000,
-    payment: 'Menunggu tunai', paymentTone: 'cash', status: 'Menunggu pembayaran',
-    customer: 'Dimas · 2 orang', note: 'Bayar di kasir sebelum pesanan diproses.',
-    lines: [
-      ['Mie Ayam Sambal Matah', '1 × Rp38.000', 'Extra sambal'],
-      ['Ayam Bakar Madu', '1 × Rp54.000', ''],
-      ['Teh Sereh', '1 × Rp22.000', 'Hangat'],
-    ],
-  },
-  {
-    id: 'KS-1046', table: 'Meja 21', age: '4 menit lalu', minutes: 4, items: 6, total: 298000,
-    payment: 'QRIS terkonfirmasi', paymentTone: 'paid', status: 'Menunggu konfirmasi',
-    customer: 'Aldo · 5 orang', note: 'Tolong antar minuman duluan.',
-    lines: [
-      ['Paket Nasi Ayam Bakar', '3 × Rp62.000', '2 tanpa sambal'],
-      ['Es Teh Lemon', '2 × Rp20.000', ''],
-      ['Kentang Goreng', '1 × Rp32.000', 'Saus terpisah'],
-    ],
-  },
-  {
-    id: 'KS-1045', table: 'Meja 08', age: '6 menit lalu', minutes: 6, items: 2, total: 90000,
-    payment: 'QRIS terkonfirmasi', paymentTone: 'paid', status: 'Menunggu konfirmasi',
-    customer: 'Sari · 2 orang', note: '',
-    lines: [
-      ['Soto Betawi', '1 × Rp58.000', ''],
-      ['Air Mineral', '2 × Rp16.000', 'Dingin'],
-    ],
-  },
-  {
-    id: 'KS-1044', table: 'Meja 17', age: '8 menit lalu', minutes: 8, items: 5, total: 210000,
-    payment: 'QRIS terkonfirmasi', paymentTone: 'paid', status: 'Menunggu konfirmasi',
-    customer: 'Yoga · 4 orang', note: 'Pisahkan sambal dan acar.',
-    lines: [
-      ['Iga Bakar Komplit', '2 × Rp78.000', ''],
-      ['Jus Alpukat', '1 × Rp32.000', 'Tanpa gula'],
-      ['Nasi Putih', '2 × Rp11.000', ''],
-    ],
-  },
-]
-
 const tables = [
   ['01', 'Kosong', 'empty'], ['02', 'Kosong', 'empty'], ['03', 'Makan', 'occupied'], ['04', 'Bayar', 'pay'],
   ['05', 'Kosong', 'empty'], ['06', 'Makan', 'occupied'], ['07', 'Kosong', 'empty'], ['08', 'Order baru', 'new'],
@@ -74,8 +23,6 @@ const tables = [
   ['21', 'Order baru', 'new'], ['22', 'Kosong', 'empty'], ['23', 'Makan', 'occupied'], ['24', 'Kosong', 'empty'],
 ]
 
-const money = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
-
 function Icon({ name }) {
   const icons = {
     search: '⌕', bell: '♧', plus: '+', chevron: '›', arrow: '↗', more: '•••', clock: '◷', wifi: '⌁', check: '✓', close: '×', table: '▦',
@@ -84,9 +31,9 @@ function Icon({ name }) {
 }
 
 function App() {
+  const { orders, accept, reject, markCashPaid: settleCash } = useStore()
   const [route, setRoute] = useState(routeFromHash)
-  const [orders, setOrders] = useState(ordersSeed)
-  const [selectedId, setSelectedId] = useState(ordersSeed[0].id)
+  const [selectedId, setSelectedId] = useState('')
   const [filter, setFilter] = useState('Semua')
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
@@ -94,14 +41,13 @@ function App() {
   const [rejecting, setRejecting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
-  const actionable = (order) => order.status === 'Menunggu konfirmasi' || order.status === 'Menunggu pembayaran'
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesQuery = `${order.id} ${order.table} ${order.customer}`.toLowerCase().includes(query.toLowerCase())
     const matchesFilter = filter === 'Semua' || (filter === 'QRIS' && order.paymentTone === 'paid') || (filter === 'Tunai' && order.paymentTone === 'cash')
-    return actionable(order) && matchesQuery && matchesFilter
+    return isActionable(order) && matchesQuery && matchesFilter
   }), [orders, query, filter])
   const selected = filteredOrders.find((order) => order.id === selectedId) || filteredOrders[0] || null
-  const pendingCount = orders.filter(actionable).length
+  const pendingCount = orders.filter(isActionable).length
 
   useEffect(() => {
     if (selected && selected.id !== selectedId) setSelectedId(selected.id)
@@ -111,7 +57,7 @@ function App() {
   useEffect(() => {
     const onKeyDown = (event) => {
       if (!selected || event.target.matches('input, textarea, select')) return
-      if (event.key === 'Enter' && selected.paymentTone === 'paid') updateOrder('Diterima')
+      if (event.key === 'Enter' && selected.paymentTone === 'paid') updateOrder(accept)
       if (event.key.toLowerCase() === 'r') setRejecting(true)
     }
     window.addEventListener('keydown', onKeyDown)
@@ -129,23 +75,26 @@ function App() {
     window.setTimeout(() => setNotice(''), 2600)
   }
 
-  const updateOrder = (status) => {
+  const updateOrder = (action) => {
     if (!selected) return
-    setOrders((current) => current.map((order) => order.id === selected.id ? { ...order, status } : order))
+    action(selected.id)
     setRejecting(false)
     setRejectReason('')
-    flash(status === 'Diterima' ? `${selected.id} diterima dan dikirim ke dapur/bar.` : `${selected.id} ditolak.`)
+    flash(`${selected.id} selesai ditinjau.`)
   }
 
   const markCashPaid = () => {
     if (!selected) return
-    setOrders((current) => current.map((order) => order.id === selected.id ? { ...order, payment: 'Tunai diterima', paymentTone: 'paid', status: 'Menunggu konfirmasi' } : order))
+    settleCash(selected.id)
     flash(`Pembayaran tunai ${selected.table} sudah dicatat.`)
   }
 
   const confirmReject = () => {
     if (!rejectReason.trim()) return
-    updateOrder('Ditolak')
+    reject(selected.id)
+    setRejecting(false)
+    setRejectReason('')
+    flash(`${selected.id} ditolak.`)
   }
 
   const go = (item) => item.href ? (window.location.hash = '#/' + item.href) : flash(`${item.label} akan tersedia pada modul berikutnya.`)
@@ -180,7 +129,7 @@ function App() {
               <div className="order-list">{filteredOrders.map((order) => <button type="button" key={order.id} aria-pressed={selected.id === order.id} className={`order-ticket ${selected.id === order.id ? 'selected' : ''}`} onClick={() => setSelectedId(order.id)}><div className="ticket-top"><span className="table-name">{order.table}</span><span className="ticket-age"><Icon name="clock" /> {order.age}</span></div><div className="ticket-middle"><strong>{order.customer}</strong><span>{order.items} item · {money(order.total)}</span></div><div className="ticket-bottom"><span className={`payment-tag ${order.paymentTone}`}><i />{order.payment}</span><span className="ticket-id">{order.id} <Icon name="chevron" /></span></div></button>)}{filteredOrders.length === 0 && <div className="empty-state"><div className="empty-icon">⌕</div><b>Tidak ada order yang cocok</b><p>Coba ubah kata kunci atau filter pembayaran.</p></div>}</div>
             </div>
 
-            <section className="detail-panel" aria-label="Detail order terpilih"><div className="detail-header"><div><div className="detail-kicker"><span className="status-dot" /> {selected.status}</div><h2>{selected.table} <span>·</span> {selected.id}</h2><p>{selected.customer} · {selected.age}</p></div><button type="button" className="icon-button small" aria-label="Aksi lainnya" onClick={() => flash('Aksi lanjutan tersedia setelah order diterima.')}><Icon name="more" /></button></div><div className="payment-banner"><div className={`payment-symbol ${selected.paymentTone}`}>{selected.paymentTone === 'cash' ? 'Rp' : '⌁'}</div><div><b>{selected.payment}</b><span>{selected.paymentTone === 'paid' ? 'Pembayaran sudah diverifikasi oleh gateway.' : 'Tunggu pembayaran tunai di kasir sebelum diteruskan.'}</span></div>{selected.paymentTone === 'paid' && <Icon name="check" />}</div><div className="detail-section"><div className="section-title"><h3>Ringkasan pesanan</h3><span>{selected.items} item</span></div><div className="line-items">{selected.lines.map(([name, price, note]) => <div className="line-item" key={name}><div><b>{name}</b><span>{note || 'Tanpa catatan khusus'}</span></div><strong>{price}</strong></div>)}</div></div><div className="detail-section note-section"><div className="section-title"><h3>Catatan pelanggan</h3></div><div className="customer-note">{selected.note || 'Tidak ada catatan untuk order ini.'}</div></div><div className="total-row"><span>Total order</span><strong>{money(selected.total)}</strong></div><div className="detail-actions">{selected.paymentTone === 'cash' ? <button type="button" className="primary-button" onClick={markCashPaid}>Tandai tunai sudah dibayar <Icon name="arrow" /></button> : <button type="button" className="primary-button" onClick={() => updateOrder('Diterima')}>Terima & kirim ke dapur <Icon name="arrow" /></button>}<button type="button" className="reject-button" onClick={() => setRejecting(true)}>Tolak order</button></div><p className="keyboard-hint"><kbd>Enter</kbd> untuk menerima · <kbd>R</kbd> untuk menolak</p></section>{rejecting && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title"><h2 id="reject-title">Tolak order {selected.id}?</h2><p>Order akan dikeluarkan dari antrean kasir. Tindakan ini perlu alasan untuk audit outlet.</p><label>Alasan penolakan<textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Contoh: item utama habis" autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => { setRejecting(false); setRejectReason('') }}>Batal</button><button type="button" className="reject-button" disabled={!rejectReason.trim()} onClick={confirmReject}>Tolak order</button></div></div></div>}</section>
+            <section className="detail-panel" aria-label="Detail order terpilih"><div className="detail-header"><div><div className="detail-kicker"><span className="status-dot" /> {selected.status}</div><h2>{selected.table} <span>·</span> {selected.id}</h2><p>{selected.customer} · {selected.age}</p></div><button type="button" className="icon-button small" aria-label="Aksi lainnya" onClick={() => flash('Aksi lanjutan tersedia setelah order diterima.')}><Icon name="more" /></button></div><div className="payment-banner"><div className={`payment-symbol ${selected.paymentTone}`}>{selected.paymentTone === 'cash' ? 'Rp' : '⌁'}</div><div><b>{selected.payment}</b><span>{selected.paymentTone === 'paid' ? 'Pembayaran sudah diverifikasi oleh gateway.' : 'Tunggu pembayaran tunai di kasir sebelum diteruskan.'}</span></div>{selected.paymentTone === 'paid' && <Icon name="check" />}</div><div className="detail-section"><div className="section-title"><h3>Ringkasan pesanan</h3><span>{selected.items} item</span></div><div className="line-items">{selected.lines.map(([name, price, note]) => <div className="line-item" key={name}><div><b>{name}</b><span>{note || 'Tanpa catatan khusus'}</span></div><strong>{price}</strong></div>)}</div></div><div className="detail-section note-section"><div className="section-title"><h3>Catatan pelanggan</h3></div><div className="customer-note">{selected.note || 'Tidak ada catatan untuk order ini.'}</div></div><div className="total-row"><span>Total order</span><strong>{money(selected.total)}</strong></div><div className="detail-actions">{selected.paymentTone === 'cash' ? <button type="button" className="primary-button" onClick={markCashPaid}>Tandai tunai sudah dibayar <Icon name="arrow" /></button> : <button type="button" className="primary-button" onClick={() => updateOrder(accept)}>Terima & kirim ke dapur <Icon name="arrow" /></button>}<button type="button" className="reject-button" onClick={() => setRejecting(true)}>Tolak order</button></div><p className="keyboard-hint"><kbd>Enter</kbd> untuk menerima · <kbd>R</kbd> untuk menolak</p></section>{rejecting && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title"><h2 id="reject-title">Tolak order {selected.id}?</h2><p>Order akan dikeluarkan dari antrean kasir. Tindakan ini perlu alasan untuk audit outlet.</p><label>Alasan penolakan<textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Contoh: item utama habis" autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => { setRejecting(false); setRejectReason('') }}>Batal</button><button type="button" className="reject-button" disabled={!rejectReason.trim()} onClick={confirmReject}>Tolak order</button></div></div></div>}</section>
         </div>
       </main>
       {notice && <div className="toast" role="status"><span className="toast-check">✓</span>{notice}</div>}
@@ -188,4 +137,8 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(<App />)
+createRoot(document.getElementById('root')).render(
+  <StoreProvider>
+    <App />
+  </StoreProvider>,
+)

@@ -7,8 +7,9 @@ import { money, STATUS, useStore } from './state.jsx'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
+// Table comes from the URL hash (#/meja?meja=5), not the query string.
 const tableFromParams = () => {
-  const q = new URLSearchParams(window.location.search)
+  const q = new URLSearchParams(window.location.hash.split('?')[1] || '')
   return q.get('meja') || q.get('table') || '01'
 }
 
@@ -52,7 +53,7 @@ function Customer() {
   const [cart, setCart] = useState([])
   const [payment, setPayment] = useState('qris')
   const [note, setNote] = useState('')
-  const [justPlaced, setJustPlaced] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
   const [placedId, setPlacedId] = useState(null)
   const tableName = `Meja ${table}`
 
@@ -81,23 +82,28 @@ function Customer() {
 
   const subtotal = cart.reduce((sum, l) => sum + l.price * l.qty, 0)
 
-  const submit = () => {
-    if (cart.length === 0) return
-    const lines = cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), ''])
-    submitCustomerOrder({
-      table: tableName,
-      items: cart.reduce((n, l) => n + l.qty, 0),
-      total: subtotal,
-      paymentTone: payment === 'qris' ? 'paid' : 'cash',
-      station: 'dapur',
-      customer: 'Pelanggan meja',
-      note: note.trim(),
-      lines,
-    }).then((id) => setPlacedId(id))
-      .catch(() => setPlacedId(null))
-    setJustPlaced(id)
-    setCart([])
-    setRoute('order')
+  const submit = async () => {
+    if (cart.length === 0 || submitting) return
+    setSubmitting(true)
+    try {
+      const id = await submitCustomerOrder({
+        table: tableName,
+        items: cart.reduce((n, l) => n + l.qty, 0),
+        total: subtotal,
+        paymentTone: payment === 'qris' ? 'paid' : 'cash',
+        station: 'dapur',
+        customer: 'Pelanggan meja',
+        note: note.trim(),
+        lines: cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), '']),
+      })
+      setPlacedId(id)
+      setCart([])
+      setRoute('order')
+    } catch (error) {
+      setRoute('cart')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (route === 'order') {
@@ -138,6 +144,54 @@ function Customer() {
             <button type="button" className="secondary-button" onClick={() => setRoute('menu')}>+ Pesan lagi</button>
             {done && <button type="button" className="primary-button" onClick={() => { setPlacedId(null); setRoute('menu'); setCart([]) }}>Selesai</button>}
           </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (route === 'cart') {
+    return (
+      <main className="customer">
+        <div className="customer-shell">
+          <header className="customer-header">
+            <button type="button" className="back-button" onClick={() => setRoute('menu')}>←</button>
+            <div><h1>Keranjang</h1><p>{tableName} · {cart.reduce((n, l) => n + l.qty, 0)} item</p></div>
+          </header>
+          {cart.length === 0 ? (
+            <div className="cart-empty">
+              <div className="empty-icon">+</div>
+              <b>Keranjang masih kosong</b>
+              <p>Tambahkan menu dari daftar pesanan.</p>
+              <button type="button" className="secondary-button" onClick={() => setRoute('menu')}>Pilih menu</button>
+            </div>
+          ) : (
+            <>
+              <section className="cart-list">
+                {cart.map((l) => (
+                  <div className="cart-item" key={l.id}>
+                    <div className="cart-item-body">
+                      <b>{l.name}</b>
+                      <span>{money(l.price)}</span>
+                    </div>
+                    <div className="qty-stepper">
+                      <button type="button" aria-label={`Kurangi ${l.name}`} onClick={() => changeQty(l.id, -1)}>−</button>
+                      <em>{l.qty}</em>
+                      <button type="button" aria-label={`Tambah ${l.name}`} onClick={() => changeQty(l.id, 1)}>+</button>
+                    </div>
+                    <strong className="cart-line-total">{money(l.price * l.qty)}</strong>
+                  </div>
+                ))}
+              </section>
+              <div className="checkout-summary">
+                <div className="line-item"><div><b>Subtotal</b></div><strong>{money(subtotal)}</strong></div>
+                <div className="line-item"><div><b>Pajak 11%</b></div><strong>{money(Math.round(subtotal * 0.11))}</strong></div>
+                <div className="checkout-total"><span>Total</span><strong>{money(subtotal + Math.round(subtotal * 0.11))}</strong></div>
+              </div>
+              <button type="button" className="primary-button checkout-submit" onClick={() => setRoute('checkout')}>
+                Lanjut ke pembayaran · {money(subtotal + Math.round(subtotal * 0.11))}
+              </button>
+            </>
+          )}
         </div>
       </main>
     )

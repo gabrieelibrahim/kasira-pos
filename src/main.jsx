@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import Customer from './Customer'
 import Kds from './Kds'
+import Qr from './Qr'
 import { isActionable, money, StoreProvider, useStore } from './state.jsx'
 import './styles.css'
 
@@ -12,6 +13,7 @@ const navItems = [
   { label: 'Order masuk', icon: '↗', count: true, active: true },
   { label: 'Layar dapur', icon: '▦', href: 'kds' },
   { label: 'Portal meja', icon: '◫', href: 'meja' },
+  { label: 'QR meja', icon: '▣', href: 'qr' },
   { label: 'Menu & stok', icon: '☷' },
   { label: 'Laporan', icon: '◒' },
 ]
@@ -102,6 +104,7 @@ function App() {
   const go = (item) => item.href ? (window.location.hash = '#/' + item.href) : flash(`${item.label} akan tersedia pada modul berikutnya.`)
 
   if (route === 'kds') return <Kds />
+  if (route === 'qr') return <Qr />
   if (route === 'meja' || route === 'pelanggan') return <Customer />
 
   if (!selected) {

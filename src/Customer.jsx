@@ -7,6 +7,11 @@ import { money, STATUS, useStore } from './state.jsx'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
+const tableFromParams = () => {
+  const q = new URLSearchParams(window.location.search)
+  return q.get('meja') || q.get('table') || '01'
+}
+
 const MENU = [
   { id: 'nasi-goreng', name: 'Nasi Goreng Kampung', price: 42000, cat: 'Makanan', desc: 'Beras wangi, ayam suwir, telur, acar.', modifier: ['Level pedas', 'Tanpa bawang', 'Telur tambah'] },
   { id: 'mie-goreng', name: 'Mie Goreng Spesial', price: 35000, cat: 'Makanan', desc: 'Mie kuning, bakso sapi, sayur, sambal.', modifier: ['Level pedas', 'Extra bakso'] },
@@ -37,6 +42,7 @@ function MenuCard({ item, onAdd }) {
 
 function Customer() {
   const { orders, submitCustomerOrder } = useStore()
+  const [table] = useState(tableFromParams)
   const [route, setRoute] = useState('menu') // menu | cart | checkout | order
   const [cat, setCat] = useState('Semua')
   const [cart, setCart] = useState([])
@@ -44,8 +50,9 @@ function Customer() {
   const [note, setNote] = useState('')
   const [justPlaced, setJustPlaced] = useState(null)
   const [placedId, setPlacedId] = useState(null)
+  const tableName = `Meja ${table}`
 
-  // customer order = most recent order on "Meja 01" that is ours
+  // customer order = the order this session just placed
   const myOrder = useMemo(() => orders.find((o) => o.id === placedId) || null, [orders, placedId])
 
   useEffect(() => { window.scrollTo(0, 0) }, [route])
@@ -74,7 +81,7 @@ function Customer() {
     if (cart.length === 0) return
     const lines = cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), ''])
     const id = submitCustomerOrder({
-      table: 'Meja 01',
+      table: tableName,
       items: cart.reduce((n, l) => n + l.qty, 0),
       total: subtotal,
       payment: payment === 'qris' ? 'QRIS terkonfirmasi' : 'Menunggu tunai',
@@ -99,7 +106,7 @@ function Customer() {
             <span className="live-dot" />
             <div>
               <h1>Pesanan kamu</h1>
-              <p>Meja 01 · {myOrder ? myOrder.id : 'Memuat…'}</p>
+              <p>{tableName} · {myOrder ? myOrder.id : 'Memuat…'}</p>
             </div>
           </div>
           {myOrder && (
@@ -139,7 +146,7 @@ function Customer() {
         <div className="customer-shell">
           <header className="customer-header">
             <button type="button" className="back-button" onClick={() => setRoute('cart')}>←</button>
-            <div><h1>Pembayaran</h1><p>Meja 01</p></div>
+            <div><h1>Pembayaran</h1><p>{tableName}</p></div>
           </header>
           <section className="checkout-summary">
             <div className="line-item"><div><b>Subtotal</b></div><strong>{money(subtotal)}</strong></div>
@@ -173,8 +180,8 @@ function Customer() {
   return (
     <main className="customer">
       <header className="customer-top">
-        <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>Meja 01</small></div></div>
-        <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === 'Meja 01').length} pesanan aktif</span>
+        <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
+        <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === tableName).length} pesanan aktif</span>
       </header>
 
       <section className="customer-hero">

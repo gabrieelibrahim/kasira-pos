@@ -4,6 +4,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { money, STATUS, useStore } from './state.jsx'
+import { Ic } from './icons.jsx'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
@@ -40,7 +41,7 @@ function MenuCard({ item, onAdd }) {
         <span className="menu-price">{money(price)}</span>
         {mods.length > 0 && <small className="menu-modifier">{mods.length} pilihan tambahan</small>}
       </div>
-      <button type="button" className="menu-add" aria-label={`Tambah ${name}`} onClick={() => onAdd(item)}>+</button>
+      <button type="button" className="menu-add" aria-label={`Tambah ${name}`} onClick={() => onAdd(item)}><Ic.plus width="18" height="18" /></button>
     </div>
   )
 }
@@ -147,7 +148,7 @@ function Customer() {
             </div>
           )}
           <div className="track-actions">
-            <button type="button" className="secondary-button" onClick={() => setRoute('menu')}>+ Pesan lagi</button>
+            <button type="button" className="secondary-button" onClick={() => setRoute('menu')}><Ic.plus width="16" height="16" /> Pesan lagi</button>
             {done && <button type="button" className="primary-button" onClick={() => { setPlacedId(null); setRoute('menu'); setCart([]) }}>Selesai</button>}
           </div>
         </div>
@@ -160,12 +161,12 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            <button type="button" className="back-button" onClick={() => setRoute('menu')}>←</button>
+            <button type="button" className="back-button" aria-label="Kembali ke menu" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>
             <div><h1>Keranjang</h1><p>{tableName} · {cart.reduce((n, l) => n + l.qty, 0)} item</p></div>
           </header>
           {cart.length === 0 ? (
             <div className="cart-empty">
-              <div className="empty-icon">+</div>
+              <div className="empty-icon"><Ic.plus width="26" height="26" /></div>
               <b>Keranjang masih kosong</b>
               <p>Tambahkan menu dari daftar pesanan.</p>
               <button type="button" className="secondary-button" onClick={() => setRoute('menu')}>Pilih menu</button>
@@ -180,9 +181,9 @@ function Customer() {
                       <span>{money(l.price)}</span>
                     </div>
                     <div className="qty-stepper">
-                      <button type="button" aria-label={`Kurangi ${l.name}`} onClick={() => changeQty(l.id, -1)}>−</button>
+                      <button type="button" aria-label={`Kurangi ${l.name}`} onClick={() => changeQty(l.id, -1)}><Ic.minus width="15" height="15" /></button>
                       <em>{l.qty}</em>
-                      <button type="button" aria-label={`Tambah ${l.name}`} onClick={() => changeQty(l.id, 1)}>+</button>
+                      <button type="button" aria-label={`Tambah ${l.name}`} onClick={() => changeQty(l.id, 1)}><Ic.plus width="15" height="15" /></button>
                     </div>
                     <strong className="cart-line-total">{money(l.price * l.qty)}</strong>
                   </div>
@@ -208,7 +209,7 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            <button type="button" className="back-button" onClick={() => setRoute('cart')}>←</button>
+            <button type="button" className="back-button" aria-label="Kembali ke keranjang" onClick={() => setRoute('cart')}><Ic.back width="20" height="20" /></button>
             <div><h1>Pembayaran</h1><p>{tableName}</p></div>
           </header>
           <section className="checkout-summary">
@@ -243,7 +244,10 @@ function Customer() {
   return (
     <main className="customer">
       <header className="customer-top">
-        <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
+        <div className="customer-top-left">
+          <button type="button" className="back-button" aria-label="Kembali ke dashboard" onClick={() => window.location.hash = '#/'}><Ic.back width="20" height="20" /></button>
+          <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
+        </div>
         <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === tableName).length} pesanan aktif</span>
       </header>
 

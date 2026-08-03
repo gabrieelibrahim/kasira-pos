@@ -3,15 +3,16 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { isActionable, money, useStore } from '../state.jsx'
+import { Ic } from '../icons.jsx'
 
 const navItems = [
-  { label: 'Ringkasan', icon: '◈' },
-  { label: 'Order masuk', icon: '↗', count: true, active: true },
-  { label: 'Layar dapur', icon: '▦', href: 'kds' },
-  { label: 'Portal meja', icon: '◫', href: 'meja' },
-  { label: 'QR meja', icon: '▣', href: 'qr' },
-  { label: 'Menu & stok', icon: '☷', href: 'menu' },
-  { label: 'Laporan', icon: '◒' },
+  { label: 'Ringkasan', icon: 'dashboard' },
+  { label: 'Order masuk', icon: 'inbox', count: true, active: true },
+  { label: 'Layar dapur', icon: 'kitchen', href: 'kds' },
+  { label: 'Portal meja', icon: 'tables', href: 'meja' },
+  { label: 'QR meja', icon: 'qr', href: 'qr' },
+  { label: 'Menu & stok', icon: 'menu', href: 'menu' },
+  { label: 'Laporan', icon: 'report' },
 ]
 
 const tables = [
@@ -23,11 +24,9 @@ const tables = [
   ['21', 'Order baru', 'new'], ['22', 'Kosong', 'empty'], ['23', 'Makan', 'occupied'], ['24', 'Kosong', 'empty'],
 ]
 
-function Icon({ name }) {
-  const icons = {
-    search: '⌕', bell: '♧', plus: '+', chevron: '›', arrow: '↗', more: '•••', clock: '◷', wifi: '⌁', check: '✓', close: '×', table: '▦',
-  }
-  return <span aria-hidden="true" className={`icon icon-${name}`}>{icons[name] || name}</span>
+function Icon({ name, size = 17 }) {
+  const render = Ic[name] || Ic.dashboard
+  return <span aria-hidden="true" className={`icon icon-${name}`}>{render({ width: size, height: size })}</span>
 }
 
 function Cashier() {
@@ -103,7 +102,7 @@ function Cashier() {
           <header className="topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" /><b>Order masuk</b></div></header>
           <div className="content-wrap">
             <div className="empty-workspace">
-              <div className="empty-icon">✓</div>
+              <div className="empty-icon"><Icon name="check" size={26} /></div>
               <h1>Semua order sudah ditinjau</h1>
               <p>Order baru dari meja pelanggan akan muncul di sini secara realtime.</p>
               <button className="secondary-button" onClick={() => { setFilter('Semua'); setQuery('') }}>Tampilkan semua order</button>
@@ -119,8 +118,8 @@ function Cashier() {
       <aside className="sidebar">
         <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
         <div className="outlet-switcher"><span className="live-dot" /> <span><b>Outlet Senopati</b><small>Shift pagi · Aktif</small></span><Icon name="chevron" /></div>
-        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} aria-current={item.active ? 'page' : undefined} aria-label={item.label} title={item.label} className={`nav-item ${item.active ? 'active' : ''}`} onClick={() => go(item)}><span className="nav-icon">{item.icon}</span><span>{item.label}</span>{item.count ? <em>{pendingCount}</em> : null}</button>)}</nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" aria-label="Pengaturan" title="Pengaturan" onClick={() => flash('Pengaturan akan tersedia pada modul berikutnya.')}><span className="nav-icon">◉</span><span>Pengaturan</span></button><div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><Icon name="arrow" /></div><div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><Icon name="more" /></div></div>
+        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} aria-current={item.active ? 'page' : undefined} aria-label={item.label} title={item.label} className={`nav-item ${item.active ? 'active' : ''}`} onClick={() => go(item)}><span className="nav-icon">{Icon({ name: item.icon, size: 18 })}</span><span>{item.label}</span>{item.count ? <em>{pendingCount}</em> : null}</button>)}</nav>
+        <div className="sidebar-bottom"><button type="button" className="nav-item" aria-label="Pengaturan" title="Pengaturan" onClick={() => flash('Pengaturan akan tersedia pada modul berikutnya.')}><span className="nav-icon">{Icon({ name: 'settings', size: 18 })}</span><span>Pengaturan</span></button><div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><Icon name="arrowUpRight" /></div><div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><Icon name="more" /></div></div>
       </aside>
 
       <main className="main-content">
@@ -135,13 +134,13 @@ function Cashier() {
             <div className="queue-column">
               <div className="queue-toolbar"><div className="filter-tabs" role="tablist" aria-label="Filter pembayaran">{['Semua', 'QRIS', 'Tunai'].map((item) => <button type="button" role="tab" aria-selected={filter === item} key={item} className={filter === item ? 'selected' : ''} onClick={() => setFilter(item)}>{item}{item === 'Semua' && <span>{pendingCount}</span>}</button>)}</div><label className="search-field"><Icon name="search" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari order atau meja" aria-label="Cari order atau meja" /></label></div>
               <div className="queue-meta"><span>{filteredOrders.length} order perlu ditinjau</span><button type="button" className="sort-button" onClick={() => flash('Urutan saat ini: order terlama dulu.')}>Terlama dulu <Icon name="chevron" /></button></div>
-              <div className="order-list">{filteredOrders.map((order) => <button type="button" key={order.id} aria-pressed={selected.id === order.id} className={`order-ticket ${selected.id === order.id ? 'selected' : ''}`} onClick={() => setSelectedId(order.id)}><div className="ticket-top"><span className="table-name">{order.table}</span><span className="ticket-age"><Icon name="clock" /> {order.age}</span></div><div className="ticket-middle"><strong>{order.customer}</strong><span>{order.items} item · {money(order.total)}</span></div><div className="ticket-bottom"><span className={`payment-tag ${order.paymentTone}`}><i />{order.payment}</span><span className="ticket-id">{order.id} <Icon name="chevron" /></span></div></button>)}{filteredOrders.length === 0 && <div className="empty-state"><div className="empty-icon">⌕</div><b>Tidak ada order yang cocok</b><p>Coba ubah kata kunci atau filter pembayaran.</p></div>}</div>
+              <div className="order-list">{filteredOrders.map((order) => <button type="button" key={order.id} aria-pressed={selected.id === order.id} className={`order-ticket ${selected.id === order.id ? 'selected' : ''}`} onClick={() => setSelectedId(order.id)}><div className="ticket-top"><span className="table-name">{order.table}</span><span className="ticket-age"><Icon name="clock" /> {order.age}</span></div><div className="ticket-middle"><strong>{order.customer}</strong><span>{order.items} item · {money(order.total)}</span></div><div className="ticket-bottom"><span className={`payment-tag ${order.paymentTone}`}><i />{order.payment}</span><span className="ticket-id">{order.id} <Icon name="chevron" /></span></div></button>)}{filteredOrders.length === 0 && <div className="empty-state"><div className="empty-icon"><Icon name="search" size={26} /></div><b>Tidak ada order yang cocok</b><p>Coba ubah kata kunci atau filter pembayaran.</p></div>}</div>
             </div>
 
-            <section className="detail-panel" aria-label="Detail order terpilih"><div className="detail-header"><div><div className="detail-kicker"><span className="status-dot" /> {selected.status}</div><h2>{selected.table} <span>·</span> {selected.id}</h2><p>{selected.customer} · {selected.age}</p></div><button type="button" className="icon-button small" aria-label="Aksi lainnya" onClick={() => flash('Aksi lanjutan tersedia setelah order diterima.')}><Icon name="more" /></button></div><div className="payment-banner"><div className={`payment-symbol ${selected.paymentTone}`}>{selected.paymentTone === 'cash' ? 'Rp' : '⌁'}</div><div><b>{selected.payment}</b><span>{selected.paymentTone === 'paid' ? 'Pembayaran sudah diverifikasi oleh gateway.' : 'Tunggu pembayaran tunai di kasir sebelum diteruskan.'}</span></div>{selected.paymentTone === 'paid' && <Icon name="check" />}</div><div className="detail-section"><div className="section-title"><h3>Ringkasan pesanan</h3><span>{selected.items} item</span></div><div className="line-items">{selected.lines.map(([name, price, note]) => <div className="line-item" key={name}><div><b>{name}</b><span>{note || 'Tanpa catatan khusus'}</span></div><strong>{price}</strong></div>)}</div></div><div className="detail-section note-section"><div className="section-title"><h3>Catatan pelanggan</h3></div><div className="customer-note">{selected.note || 'Tidak ada catatan untuk order ini.'}</div></div><div className="total-row"><span>Total order</span><strong>{money(selected.total)}</strong></div><div className="detail-actions">{selected.paymentTone === 'cash' ? <button type="button" className="primary-button" onClick={markCashPaid}>Tandai tunai sudah dibayar <Icon name="arrow" /></button> : <button type="button" className="primary-button" onClick={() => updateOrder(accept)}>Terima & kirim ke dapur <Icon name="arrow" /></button>}<button type="button" className="reject-button" onClick={() => setRejecting(true)}>Tolak order</button></div><p className="keyboard-hint"><kbd>Enter</kbd> untuk menerima · <kbd>R</kbd> untuk menolak</p></section>{rejecting && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title"><h2 id="reject-title">Tolak order {selected.id}?</h2><p>Order akan dikeluarkan dari antrean kasir. Tindakan ini perlu alasan untuk audit outlet.</p><label>Alasan penolakan<textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Contoh: item utama habis" autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => { setRejecting(false); setRejectReason('') }}>Batal</button><button type="button" className="reject-button" disabled={!rejectReason.trim()} onClick={confirmReject}>Tolak order</button></div></div></div>}</section>
+            <section className="detail-panel" aria-label="Detail order terpilih"><div className="detail-header"><div><div className="detail-kicker"><span className="status-dot" /> {selected.status}</div><h2>{selected.table} <span>·</span> {selected.id}</h2><p>{selected.customer} · {selected.age}</p></div><button type="button" className="icon-button small" aria-label="Aksi lainnya" onClick={() => flash('Aksi lanjutan tersedia setelah order diterima.')}><Icon name="more" /></button></div><div className="payment-banner"><div className={`payment-symbol ${selected.paymentTone}`}>{selected.paymentTone === 'cash' ? <span className="payment-cash-label">Rp</span> : <Icon name="wifi" size={20} />}</div><div><b>{selected.payment}</b><span>{selected.paymentTone === 'paid' ? 'Pembayaran sudah diverifikasi oleh gateway.' : 'Tunggu pembayaran tunai di kasir sebelum diteruskan.'}</span></div>{selected.paymentTone === 'paid' && <Icon name="check" />}</div><div className="detail-section"><div className="section-title"><h3>Ringkasan pesanan</h3><span>{selected.items} item</span></div><div className="line-items">{selected.lines.map(([name, price, note]) => <div className="line-item" key={name}><div><b>{name}</b><span>{note || 'Tanpa catatan khusus'}</span></div><strong>{price}</strong></div>)}</div></div><div className="detail-section note-section"><div className="section-title"><h3>Catatan pelanggan</h3></div><div className="customer-note">{selected.note || 'Tidak ada catatan untuk order ini.'}</div></div><div className="total-row"><span>Total order</span><strong>{money(selected.total)}</strong></div><div className="detail-actions">{selected.paymentTone === 'cash' ? <button type="button" className="primary-button" onClick={markCashPaid}>Tandai tunai sudah dibayar <Icon name="arrowRight" /></button> : <button type="button" className="primary-button" onClick={() => updateOrder(accept)}>Terima & kirim ke dapur <Icon name="arrowRight" /></button>}<button type="button" className="reject-button" onClick={() => setRejecting(true)}>Tolak order</button></div><p className="keyboard-hint"><kbd>Enter</kbd> untuk menerima · <kbd>R</kbd> untuk menolak</p></section>{rejecting && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title"><h2 id="reject-title">Tolak order {selected.id}?</h2><p>Order akan dikeluarkan dari antrean kasir. Tindakan ini perlu alasan untuk audit outlet.</p><label>Alasan penolakan<textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Contoh: item utama habis" autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => { setRejecting(false); setRejectReason('') }}>Batal</button><button type="button" className="reject-button" disabled={!rejectReason.trim()} onClick={confirmReject}>Tolak order</button></div></div></div>}</section>
         </div>
       </main>
-      {notice && <div className="toast" role="status"><span className="toast-check">✓</span>{notice}</div>}
+      {notice && <div className="toast" role="status"><span className="toast-check"><Icon name="check" size={14} /></span>{notice}</div>}
     </div>
   )
 }

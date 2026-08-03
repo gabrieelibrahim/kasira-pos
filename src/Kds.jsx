@@ -4,6 +4,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { STATUS, isInProduction, money, useStore } from './state.jsx'
+import { Ic } from './icons.jsx'
 
 const STATIONS = [
   { id: 'semua', label: 'Semua' },
@@ -54,9 +55,12 @@ function Kds() {
   return (
     <main className="kds">
       <header className="kds-header">
-        <div className="kds-title">
-          <h1>Layar dapur</h1>
-          <p>Order yang sudah diterima kasir dan masuk ke produksi.</p>
+        <div className="kds-top-left">
+          <button type="button" className="back-button" aria-label="Kembali ke dashboard" onClick={() => window.location.hash = '#/'}><Ic.back width="20" height="20" /></button>
+          <div className="kds-title">
+            <h1>Layar dapur</h1>
+            <p>Order yang sudah diterima kasir dan masuk ke produksi.</p>
+          </div>
         </div>
         <div className="kds-stations">
           {STATIONS.map((s) => (

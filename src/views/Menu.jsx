@@ -4,6 +4,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { money, useStore } from '../state.jsx'
+import { Ic } from '../icons.jsx'
 
 const CATEGORIES = ['Makanan', 'Minuman', 'Camilan']
 const EMPTY_FORM = { name: '', price: '', category: 'Makanan', description: '', modifier: '', available: true }
@@ -74,15 +75,15 @@ function Menu() {
       <aside className="sidebar">
         <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
         <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon">◈</span><span>Ringkasan</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon">↗</span><span>Order masuk</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kds'}><span className="nav-icon">▦</span><span>Layar dapur</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/meja'}><span className="nav-icon">◫</span><span>Portal meja</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/qr'}><span className="nav-icon">▣</span><span>QR meja</span></button>
-          <button type="button" className="nav-item active" aria-current="page" onClick={() => {}}><span className="nav-icon">☷</span><span>Menu & stok</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/laporan'}><span className="nav-icon">◒</span><span>Laporan</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon"><Ic.dashboard width="18" height="18" /></span><span>Ringkasan</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.inbox width="18" height="18" /></span><span>Order masuk</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kds'}><span className="nav-icon"><Ic.kitchen width="18" height="18" /></span><span>Layar dapur</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/meja'}><span className="nav-icon"><Ic.tables width="18" height="18" /></span><span>Portal meja</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/qr'}><span className="nav-icon"><Ic.qr width="18" height="18" /></span><span>QR meja</span></button>
+          <button type="button" className="nav-item active" aria-current="page" onClick={() => {}}><span className="nav-icon"><Ic.menu width="18" height="18" /></span><span>Menu & stok</span></button>
+          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/laporan'}><span className="nav-icon"><Ic.report width="18" height="18" /></span><span>Laporan</span></button>
         </nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon">◉</span><span>Pengaturan</span></button></div>
+        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.settings width="18" height="18" /></span><span>Pengaturan</span></button></div>
       </aside>
 
       <main className="main-content">
@@ -90,7 +91,7 @@ function Menu() {
           <div className="breadcrumb"><span>Workspace</span><span className="crumb-sep">/</span><b>Menu & stok</b></div>
           <div className="top-actions">
             <div className="connection"><span className="live-dot" /> Realtime aktif</div>
-            <button type="button" className="primary-button" onClick={openAdd}><span className="btn-plus">+</span> Tambah item</button>
+            <button type="button" className="primary-button" onClick={openAdd}><span className="btn-plus"><Ic.plus width="16" height="16" /></span> Tambah item</button>
           </div>
         </header>
 
@@ -98,15 +99,15 @@ function Menu() {
           <section className="page-heading"><div><p className="eyebrow">KATALOG OUTLET</p><h1>Menu & stok</h1></div></section>
 
           <section className="stats-row">
-            <div className="stat-card"><div className="stat-icon avail">✓</div><div><b>{availableCount}</b><span>Tersedia</span></div></div>
-            <div className="stat-card"><div className="stat-icon out">◷</div><div><b>{outCount}</b><span>Habis</span></div></div>
-            <div className="stat-card"><div className="stat-icon total">☷</div><div><b>{menu.length}</b><span>Total item</span></div></div>
+            <div className="stat-card"><div className="stat-icon avail"><Ic.check width="20" height="20" /></div><div><b>{availableCount}</b><span>Tersedia</span></div></div>
+            <div className="stat-card"><div className="stat-icon out"><Ic.clock width="20" height="20" /></div><div><b>{outCount}</b><span>Habis</span></div></div>
+            <div className="stat-card"><div className="stat-icon total"><Ic.menu width="20" height="20" /></div><div><b>{menu.length}</b><span>Total item</span></div></div>
           </section>
 
           <section className="menu-panel">
             <div className="queue-toolbar">
               <div className="filter-tabs" role="tablist" aria-label="Filter kategori">{['Semua', ...CATEGORIES].map((c) => <button type="button" role="tab" aria-selected={cat === c} key={c} className={cat === c ? 'selected' : ''} onClick={() => setCat(c)}>{c}</button>)}</div>
-              <label className="search-field"><span aria-hidden="true" className="icon">⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari item" aria-label="Cari item" /></label>
+              <label className="search-field"><span aria-hidden="true" className="icon"><Ic.search width="16" height="16" /></span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari item" aria-label="Cari item" /></label>
             </div>
 
             <div className="menu-table">
@@ -167,7 +168,7 @@ function Menu() {
         </div>
       )}
 
-      {notice && <div className="toast" role="status"><span className="toast-check">✓</span>{notice}</div>}
+      {notice && <div className="toast" role="status"><span className="toast-check"><Ic.check width="14" height="14" /></span>{notice}</div>}
     </div>
   )
 }

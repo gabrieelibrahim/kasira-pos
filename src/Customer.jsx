@@ -62,7 +62,13 @@ function Customer() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [route])
 
-  const visibleMenu = (menu.length ? menu : MENU).filter((m) => cat === 'Semua' || m.cat === cat)
+  // DB items use `category`; the local fallback MENU uses `cat`. Normalize so
+  // the category filter works for both sources.
+  const catOf = (m) => m.category || m.cat || 'Lainnya'
+  // DB items are hidden when unavailable; the local fallback MENU has no
+  // availability flag, so it always shows every item.
+  const visibleMenu = (menu.length ? menu : MENU).filter((m) => cat === 'Semua' || catOf(m) === cat)
+    .filter((m) => !menu.length || m.available !== false)
 
   const addItem = (item) => {
     setCart((prev) => {

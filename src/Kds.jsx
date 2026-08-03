@@ -36,7 +36,7 @@ function KdsCard({ order, onAdvance }) {
         ))}
       </ul>
       {order.note && <p className="kds-note">{order.note}</p>}
-      <div className="kds-total"><span>{order.customer}</span><b>{money(order.total)}</b></div>
+      <div className="kds-total"><span className="kds-table">{order.table}</span><b>{money(order.total)}</b></div>
       {next && <button className="kds-action" onClick={() => onAdvance(order.id)}>{next}</button>}
     </article>
   )

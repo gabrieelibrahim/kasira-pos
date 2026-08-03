@@ -55,6 +55,15 @@ export function StoreProvider({ children }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         if (mounted) setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'menu_items' }, (payload) => {
+        if (mounted) setMenu((prev) => [...prev, payload.new])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_items' }, (payload) => {
+        if (mounted) setMenu((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'menu_items' }, (payload) => {
+        if (mounted) setMenu((prev) => prev.filter((m) => m.id !== payload.old.id))
+      })
       .subscribe()
 
     async function boot() {
@@ -104,6 +113,27 @@ export function StoreProvider({ children }) {
         update(id, { status: next })
         return { ...o, status: next }
       })),
+      upsertItem: async (item, id) => {
+        const patch = {
+          name: item.name,
+          price: Number(item.price),
+          category: item.category,
+          description: item.description || '',
+          modifier: item.modifier || [],
+          available: Boolean(item.available),
+        }
+        if (id) {
+          await supabase.from('menu_items').update(patch).eq('id', id)
+        } else {
+          await supabase.from('menu_items').insert({ ...patch, outlet_id: outletId })
+        }
+      },
+      toggleAvailability: async (id, available) => {
+        await supabase.from('menu_items').update({ available }).eq('id', id)
+      },
+      deleteItem: async (id) => {
+        await supabase.from('menu_items').delete().eq('id', id)
+      },
       submitCustomerOrder: async (order) => {
         const { data, error } = await supabase.from('orders').insert({
           outlet_id: outletId,

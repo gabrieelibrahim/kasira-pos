@@ -10,7 +10,7 @@ const navItems = [
   { label: 'Layar dapur', icon: '▦', href: 'kds' },
   { label: 'Portal meja', icon: '◫', href: 'meja' },
   { label: 'QR meja', icon: '▣', href: 'qr' },
-  { label: 'Menu & stok', icon: '☷' },
+  { label: 'Menu & stok', icon: '☷', href: 'menu' },
   { label: 'Laporan', icon: '◒' },
 ]
 

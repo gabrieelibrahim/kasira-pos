@@ -96,7 +96,7 @@ function Cashier() {
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
-          <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} className="nav-item" onClick={() => go(item)}><span className="nav-icon">{item.icon}</span><span>{item.label}</span></button>)}</nav>
+          <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>{navItems.map((item) => <button type="button" key={item.label} className="nav-item" onClick={() => go(item)}><span className="nav-icon">{Icon({ name: item.icon, size: 18 })}</span><span>{item.label}</span></button>)}</nav>
         </aside>
         <main className="main-content">
           <header className="topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" /><b>Order masuk</b></div></header>

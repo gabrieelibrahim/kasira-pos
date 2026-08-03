@@ -34,7 +34,8 @@ const parseLine = ([name, price, note]) => {
 }
 
 function Report() {
-  const { reportOrders } = useStore()
+  const { reportOrders, outlet } = useStore()
+  const outletName = outlet?.name || 'kasira'
   const [period, setPeriod] = useState('today')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -104,7 +105,7 @@ function Report() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
+        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
         <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>
           <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon"><Ic.dashboard width="18" height="18" /></span><span>Ringkasan</span></button>
           <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.inbox width="18" height="18" /></span><span>Order masuk</span></button>

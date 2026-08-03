@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { Ic } from './icons.jsx'
+import { useStore } from './state.jsx'
 
 // icon name -> route
 const NAV = [
@@ -22,10 +23,12 @@ function Icon({ name, size = 18 }) {
 }
 
 function Sidebar({ active }) {
+  const { outlet } = useStore()
+  const outletName = outlet?.name || 'kasira'
   const go = (route) => { window.location.hash = '#/' + route }
   return (
     <aside className="sidebar">
-      <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
+      <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
       <nav aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
         {NAV.map((item) => (
@@ -45,9 +48,11 @@ function Sidebar({ active }) {
 }
 
 function Topbar({ breadcrumb }) {
+  const { outlet } = useStore()
+  const outletName = outlet?.name || 'kasira'
   return (
     <header className="topbar">
-      <div className="breadcrumb"><span>Workspace</span><span className="crumb-sep">/</span><b>{breadcrumb}</b></div>
+      <div className="breadcrumb"><span>{outletName}</span><span className="crumb-sep">/</span><b>{breadcrumb}</b></div>
       <div className="top-actions">
         <div className="connection"><span className="live-dot" /> Realtime aktif</div>
         <button type="button" className="icon-button" aria-label="Fokus ke pencarian" onClick={() => document.querySelector('.search-field input')?.focus()}><span className="icon"><Ic.search width="17" height="17" /></span></button>

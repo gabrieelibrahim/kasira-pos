@@ -10,7 +10,8 @@ const CATEGORIES = ['Makanan', 'Minuman', 'Camilan']
 const EMPTY_FORM = { name: '', price: '', category: 'Makanan', description: '', modifier: '', available: true }
 
 function Menu() {
-  const { menu, upsertItem, toggleAvailability, deleteItem } = useStore()
+  const { menu, outlet, upsertItem, toggleAvailability, deleteItem } = useStore()
+  const outletName = outlet?.name || 'kasira'
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState('Semua')
   const [formOpen, setFormOpen] = useState(false)
@@ -73,7 +74,7 @@ function Menu() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>kasira</strong><span>CONTROL ROOM</span></div></div>
+        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
         <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>
           <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon"><Ic.dashboard width="18" height="18" /></span><span>Ringkasan</span></button>
           <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.inbox width="18" height="18" /></span><span>Order masuk</span></button>

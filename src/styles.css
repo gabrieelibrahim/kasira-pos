@@ -167,6 +167,71 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .qr-card .qr-table { font-size: 16px; }
 .qr-card p { margin: 0; color: var(--faint); font-size: 11px; }
 
+/* Laporan */
+.period-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-1); }
+.period-tabs button { height: 34px; padding: 0 15px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; }
+.period-tabs button:hover { color: var(--ink-subtle); }
+.period-tabs button.selected { color: var(--ink); background: var(--surface-3); box-shadow: 0 1px 3px oklch(0 0 0 / .16); }
+.report-error { padding: 13px 15px; margin-bottom: 18px; border: 1px solid oklch(.68 .17 25 / .35); border-radius: 9px; color: var(--danger); background: var(--danger-soft); font-size: 13px; }
+.report-loading { padding: 60px 20px; color: var(--muted); text-align: center; font-size: 14px; }
+.report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.report-panel { padding: 18px; }
+.report-panel-head { margin-bottom: 15px; }
+.report-panel-head h2 { margin: 0; font-size: 16px; }
+.report-panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.pay-breakdown { display: grid; gap: 17px; }
+.pay-row { display: grid; gap: 6px; }
+.pay-row-top { display: flex; align-items: center; gap: 8px; }
+.pay-row-top b { flex: 1; font-size: 13px; }
+.pay-row-top strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.pay-dot { width: 8px; height: 8px; border-radius: 50%; }
+.pay-dot.qris { background: var(--success); }
+.pay-dot.cash { background: var(--warning); }
+.pay-track { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.pay-track span { display: block; height: 100%; border-radius: 99px; transition: width .3s var(--ease); }
+.pay-track span.qris { background: var(--success); }
+.pay-track span.cash { background: var(--warning); }
+.pay-row small { color: var(--muted); font-size: 11px; }
+.status-list { display: grid; gap: 9px; }
+.status-row { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.status-row span { flex: 1; }
+.status-row em { font-style: normal; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.top-panel { margin-bottom: 14px; }
+.top-items { display: grid; gap: 2px; }
+.top-item { display: flex; align-items: center; gap: 12px; padding: 9px 2px; }
+.top-rank { width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: var(--primary); background: var(--primary-soft); font-size: 12px; font-weight: 700; }
+.top-item-body { min-width: 0; flex: 1; }
+.top-item-body b, .top-item-body span { display: block; }
+.top-item-body b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-item-body span { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.top-item > strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.report-empty { padding: 26px 12px; color: var(--muted); text-align: center; font-size: 13px; }
+.report-table { width: 100%; }
+.report-table-head, .report-row { display: grid; grid-template-columns: 1.3fr .7fr 1.4fr 1.4fr .8fr; gap: 12px; align-items: center; padding: 0 18px; }
+.report-table-head { padding-top: 11px; padding-bottom: 11px; color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.report-row { min-height: 56px; border-bottom: 1px solid var(--border); }
+.report-row:last-child { border-bottom: 0; }
+.report-cell { min-width: 0; font-size: 13px; }
+.report-cell.time b, .report-cell.time small { display: block; }
+.report-cell.time b { font-size: 12px; white-space: nowrap; }
+.report-cell.time small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.report-cell.right { text-align: right; }
+.report-cell.right strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.report-row .payment-tag { color: var(--muted); }
+.report-row .payment-tag.paid { color: var(--success); }
+.report-row .payment-tag.cash { color: var(--warning); }
+.status-chip { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--surface-3); color: var(--ink-subtle); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.status-chip.selesai { color: var(--success); background: var(--success-soft); }
+.status-chip.ditolak { color: var(--danger); background: var(--danger-soft); }
+.status-chip.diterima { color: var(--info); background: var(--info-soft); }
+
+@media (max-width: 980px) {
+  .report-grid { grid-template-columns: 1fr; }
+  .report-table-head { display: none; }
+  .report-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 12px 18px; }
+  .report-cell.right { grid-column: 1 / -1; text-align: left; }
+}
+
 /* Print: QR cards only */
 @media print {
   .sidebar, .topbar, .qr-header button, .toast { display: none !important; }

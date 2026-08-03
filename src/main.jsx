@@ -13,6 +13,7 @@ import Kds from './Kds'
 import Qr from './Qr'
 import Cashier from './views/Cashier'
 import Menu from './views/Menu'
+import Report from './views/Report'
 import { StoreProvider } from './state.jsx'
 import './styles.css'
 
@@ -32,6 +33,7 @@ function App() {
   if (route === 'kds') return <Kds />
   if (route === 'qr') return <Qr />
   if (route === 'menu' || route === 'stok') return <Menu />
+  if (route === 'laporan' || route === 'report') return <Report />
   if (route === 'meja' || route === 'pelanggan') return <Customer />
   return <Cashier />
 }

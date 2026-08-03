@@ -12,7 +12,7 @@ const navItems = [
   { label: 'Portal meja', icon: 'tables', href: 'meja' },
   { label: 'QR meja', icon: 'qr', href: 'qr' },
   { label: 'Menu & stok', icon: 'menu', href: 'menu' },
-  { label: 'Laporan', icon: 'report' },
+  { label: 'Laporan', icon: 'report', href: 'laporan' },
 ]
 
 const tables = [

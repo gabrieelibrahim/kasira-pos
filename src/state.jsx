@@ -150,6 +150,11 @@ export function StoreProvider({ children }) {
         if (error) throw error
         return data.id
       },
+      reportOrders: async () => {
+        const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: true })
+        if (error) throw error
+        return (data || []).map(normalizeOrder)
+      },
     }
   }, [orders, menu, tables, ready, outletId])
 

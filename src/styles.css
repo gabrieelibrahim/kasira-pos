@@ -39,8 +39,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .kds-stations button { height: 34px; padding: 0 14px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; }
 .kds-stations button:hover { color: var(--ink-subtle); }
 .kds-stations button.selected { color: var(--ink); background: var(--surface-3); box-shadow: 0 1px 3px oklch(0 0 0 / .16); }
-.kds-board { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); align-items: start; }
+.kds-board { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); align-items: stretch; }
 .kds-card { display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); box-shadow: 0 4px 16px oklch(.22 .012 260 / .05); }
+.kds-lines-wrap { flex: 1; min-height: 0; }
 .kds-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
 .station-pill { padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
 .station-pill.dapur { color: oklch(.45 .18 255); background: var(--primary-soft); }

@@ -26,15 +26,17 @@ function KdsCard({ order, onAdvance }) {
         <span>{order.table} · {order.id}</span>
       </div>
       <div className="kds-status"><span className={`status-dot-k ${order.status.toLowerCase()}`} /> {order.status}</div>
-      <ul className="kds-lines">
-        {order.lines.map(([name, price, note]) => (
-          <li key={name}>
-            <span>{name}</span>
-            <em>{price}</em>
-            {note && <small>{note}</small>}
-          </li>
-        ))}
-      </ul>
+      <div className="kds-lines-wrap">
+        <ul className="kds-lines">
+          {order.lines.map(([name, price, note]) => (
+            <li key={name}>
+              <span>{name}</span>
+              <em>{price}</em>
+              {note && <small>{note}</small>}
+            </li>
+          ))}
+        </ul>
+      </div>
       {order.note && <p className="kds-note">{order.note}</p>}
       <div className="kds-total"><span className="kds-table">{order.table}</span><b>{money(order.total)}</b></div>
       {next && <button className="kds-action" onClick={() => onAdvance(order.id)}>{next}</button>}

@@ -3,6 +3,7 @@
 
 import React from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import { Ic } from './icons.jsx'
 
 const TABLES = Array.from({ length: 24 }, (_, i) => String(i + 1).padStart(2, '0'))
 
@@ -10,9 +11,12 @@ function Qr() {
   return (
     <main className="qr-page">
       <header className="qr-header">
-        <div>
-          <h1>QR meja</h1>
-          <p>Cetak dan tempel di meja. Pelanggan memindai untuk membuka menu, pesan, dan bayar.</p>
+        <div className="qr-title">
+          <button type="button" className="back-button" aria-label="Kembali ke dashboard" onClick={() => window.location.hash = '#/'}><Ic.back width="20" height="20" /></button>
+          <div>
+            <h1>QR meja</h1>
+            <p>Cetak dan tempel di meja. Pelanggan memindai untuk membuka menu, pesan, dan bayar.</p>
+          </div>
         </div>
         <button type="button" className="secondary-button" onClick={() => window.print()}>Cetak semua QR</button>
       </header>

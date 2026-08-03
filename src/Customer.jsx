@@ -167,7 +167,7 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            <button type="button" className="back-button" aria-label="Kembali ke menu" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>
+            {!kasir && <button type="button" className="back-button" aria-label="Kembali ke menu" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>}
             <div><h1>Keranjang</h1><p>{tableName} · {cart.reduce((n, l) => n + l.qty, 0)} item</p></div>
           </header>
           {cart.length === 0 ? (
@@ -215,7 +215,7 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            <button type="button" className="back-button" aria-label="Kembali ke keranjang" onClick={() => setRoute('cart')}><Ic.back width="20" height="20" /></button>
+            {!kasir && <button type="button" className="back-button" aria-label="Kembali ke keranjang" onClick={() => setRoute('cart')}><Ic.back width="20" height="20" /></button>}
             <div><h1>Pembayaran</h1><p>{tableName}</p></div>
           </header>
           <section className="checkout-summary">
@@ -251,7 +251,7 @@ function Customer() {
     <main className="customer">
       <header className="customer-top">
         <div className="customer-top-left">
-          <button type="button" className="back-button" aria-label={kasir ? 'Kembali ke dashboard' : 'Kembali'} onClick={() => kasir ? (window.location.hash = '#/') : setRoute('menu')}><Ic.back width="20" height="20" /></button>
+          {!kasir && <button type="button" className="back-button" aria-label="Kembali" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>}
           <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
         </div>
         <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === tableName).length} pesanan aktif</span>

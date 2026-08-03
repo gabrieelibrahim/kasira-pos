@@ -205,8 +205,37 @@ export function StoreProvider({ children }) {
         await supabase.from('table_spots').update({ status: 'empty' }).eq('id', spotId)
         setTables((prev) => prev.map((t) => (t.id === spotId ? { ...t, status: 'empty' } : t)))
       },
+      verifyResetPin: async (pin) => {
+        const { data, error } = await supabase.from('outlets').select('reset_pin').limit(1)
+        if (error) throw error
+        return data?.[0]?.reset_pin === String(pin ?? '').trim()
+      },
+      // Reset seluruh aplikasi dari nol: hapus permanen semua order + kosongkan semua meja.
+      resetAll: async () => {
+        const { error } = await supabase.from('orders').delete().not('id', 'is', null)
+        if (error) throw error
+        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).not('id', 'is', null)
+        if (terr) throw terr
+        setOrders([])
+        setTables((prev) => prev.map((t) => ({ ...t, status: 'empty' })))
+      },
+      // Reset batas akhir hari / tutup kasir: semua order aktif ditandai Selesai,
+      // meja dikosongkan, tapi order TETAP tersimpan di riwayat/laporan.
+      resetDay: async () => {
+        const active = orders
+          .filter((o) => [STATUS.PAYMENT, STATUS.CASHIER, STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED].includes(o.status))
+          .map((o) => o.id)
+        if (active.length) {
+          const { error } = await supabase.from('orders').update({ status: STATUS.DONE }).in('id', active)
+          if (error) throw error
+          setOrders((prev) => prev.map((o) => (active.includes(o.id) ? { ...o, status: STATUS.DONE } : o)))
+        }
+        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).not('id', 'is', null)
+        if (terr) throw terr
+        setTables((prev) => prev.map((t) => ({ ...t, status: 'empty' })))
+      },
     }
-  }, [orders, menu, tables, ready, outletId, outlet])
+  }, [orders, menu, tables, ready, outletId, outlet]) // resetDay depends on orders
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

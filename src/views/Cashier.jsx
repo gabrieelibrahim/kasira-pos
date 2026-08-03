@@ -73,7 +73,6 @@ function Cashier() {
 
   return (
     <AppShell active="Order masuk" breadcrumb="Order masuk" badge={pendingCount}>
-      <section className="page-heading"><div><p className="eyebrow">ORDER MASUK</p><h1>Order masuk <span className="heading-count">{pendingCount}</span></h1></div></section>
 
       <section className="workspace-grid">
             <div className="queue-column">

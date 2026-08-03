@@ -31,10 +31,6 @@ function Tables() {
 
   return (
     <AppShell active="Portal meja" breadcrumb="Portal meja">
-      <section className="page-heading">
-        <div><p className="eyebrow">MONITORING MEJA</p><h1>Portal meja</h1><p className="heading-sub">Status meja dihitung realtime dari order. Meja selesai makan bisa langsung dijadikan kosong oleh kasir.</p></div>
-      </section>
-
       <section className="table-panel">
         <div className="panel-heading"><div><h2>Status meja</h2><p>{derived.length} meja · {counts.occupied || 0} makan · {counts.pay || 0} bayar · {counts.done || 0} selesai</p></div></div>
         <div className="table-grid">

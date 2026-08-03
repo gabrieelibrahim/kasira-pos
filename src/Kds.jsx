@@ -5,6 +5,7 @@
 import React, { useMemo, useState } from 'react'
 import { STATUS, isInProduction, money, useStore } from './state.jsx'
 import { Ic } from './icons.jsx'
+import { useShortcuts } from './useShortcuts.js'
 
 const STATIONS = [
   { id: 'semua', label: 'Semua' },
@@ -48,6 +49,7 @@ function KdsCard({ order, onAdvance }) {
 function Kds() {
   const { orders, advance } = useStore()
   const [station, setStation] = useState('semua')
+  useShortcuts()
 
   const boardOrders = orders.filter(isInProduction)
   const visible = useMemo(() => boardOrders.filter((o) => station === 'semua' || o.station === station), [boardOrders, station])

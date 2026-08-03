@@ -5,17 +5,7 @@
 import React from 'react'
 import { Ic } from './icons.jsx'
 import { isActionable, useStore } from './state.jsx'
-
-// icon name -> route
-const NAV = [
-  { label: 'Ringkasan', icon: 'dashboard', route: '' },
-  { label: 'Order masuk', icon: 'inbox', route: 'kasir', count: true },
-  { label: 'Layar dapur', icon: 'kitchen', route: 'kds' },
-  { label: 'Portal meja', icon: 'tables', route: 'meja' },
-  { label: 'QR meja', icon: 'qr', route: 'qr' },
-  { label: 'Menu & stok', icon: 'menu', route: 'menu' },
-  { label: 'Laporan', icon: 'report', route: 'laporan' },
-]
+import { NAV, NAV_EXTRA, useShortcuts } from './useShortcuts.js'
 
 function Icon({ name, size = 18 }) {
   const render = Ic[name] || Ic.dashboard
@@ -38,11 +28,12 @@ function Sidebar({ active, badge }) {
             <Icon name={item.icon} />
             <span>{item.label}</span>
             {item.count && pending > 0 && <em>{pending}</em>}
+            <kbd className="nav-key">{item.key}</kbd>
           </button>
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <button type="button" aria-current={active === 'Pengaturan' ? 'page' : undefined} className={`nav-item ${active === 'Pengaturan' ? 'active' : ''}`} onClick={() => go('pengaturan')}><Icon name="settings" /><span>Pengaturan</span></button>
+        <button type="button" aria-current={active === 'Pengaturan' ? 'page' : undefined} className={`nav-item ${active === 'Pengaturan' ? 'active' : ''}`} onClick={() => go('pengaturan')}><Icon name="settings" /><span>Pengaturan</span><kbd className="nav-key">8</kbd></button>
         <div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><span className="icon"><Ic.arrowUpRight width="16" height="16" /></span></div>
         <div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><span className="icon"><Ic.more width="17" height="17" /></span></div>
       </div>
@@ -67,6 +58,9 @@ function Topbar({ breadcrumb }) {
 }
 
 export default function AppShell({ active, breadcrumb, badge, children }) {
+  // Global 1-8 sidebar shortcuts shared with KDS (defined in useShortcuts).
+  useShortcuts()
+
   return (
     <div className="app-shell">
       <Sidebar active={active} badge={badge} />

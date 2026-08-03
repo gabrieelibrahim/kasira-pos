@@ -129,12 +129,12 @@ function Report() {
                 <section className="menu-panel report-panel">
                   <div className="panel-heading report-panel-head"><div><h2>Metode pembayaran</h2><p>Total per metode pada periode ini</p></div></div>
                   <div className="pay-breakdown">
-                    {Object.values(byMethod).map((m) => {
+                    {Object.entries(byMethod).map(([key, m]) => {
                       const pct = payTotal ? Math.round((m.sum / payTotal) * 100) : 0
                       return (
-                        <div className="pay-row" key={m.label}>
-                          <div className="pay-row-top"><span className={`pay-dot ${m.label.toLowerCase()}`} /><b>{m.label}</b><strong>{money(m.sum)}</strong></div>
-                          <div className="pay-track"><span style={{ width: `${pct}%` }} className={m.label.toLowerCase()} /></div>
+                        <div className="pay-row" key={key}>
+                          <div className="pay-row-top"><span className={`pay-dot ${key}`} /><b>{m.label}</b><strong>{money(m.sum)}</strong></div>
+                          <div className="pay-track"><span style={{ width: `${pct}%` }} className={key} /></div>
                           <small>{m.n} order · {pct}%</small>
                         </div>
                       )

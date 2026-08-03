@@ -234,6 +234,18 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   .report-cell.right { grid-column: 1 / -1; text-align: left; }
 }
 
+/* Pengaturan */
+.settings-form { display: grid; gap: 14px; max-width: 720px; }
+.settings-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.settings-fields .field-wide { grid-column: 1 / -1; }
+.settings-fields label, .settings-form label { display: grid; gap: 7px; color: var(--ink-subtle); font-size: 12px; font-weight: 700; }
+.settings-fields input { padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; outline: 0; color: var(--ink); background: var(--surface-1); font-size: 13px; font-weight: 400; }
+.settings-fields input:focus { border-color: var(--primary); }
+.settings-actions { display: flex; align-items: center; gap: 14px; }
+.settings-actions .primary-button { width: auto; min-width: 180px; padding: 0 22px; }
+.settings-saved { color: var(--success); font-size: 13px; font-weight: 600; }
+@media (max-width: 620px) { .settings-fields { grid-template-columns: 1fr; } .settings-fields .field-wide { grid-column: auto; } }
+
 /* Print: QR cards only */
 @media print {
   .sidebar, .topbar, .page-heading, .toast { display: none !important; }

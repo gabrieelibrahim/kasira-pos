@@ -114,7 +114,7 @@ function Report() {
           <button type="button" className="nav-item" onClick={() => window.location.hash = '#/menu'}><span className="nav-icon"><Ic.menu width="18" height="18" /></span><span>Menu & stok</span></button>
           <button type="button" className="nav-item active" aria-current="page" onClick={() => {}}><span className="nav-icon"><Ic.report width="18" height="18" /></span><span>Laporan</span></button>
         </nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.settings width="18" height="18" /></span><span>Pengaturan</span></button></div>
+        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/pengaturan'}><span className="nav-icon"><Ic.settings width="18" height="18" /></span><span>Pengaturan</span></button></div>
       </aside>
 
       <main className="main-content">

@@ -43,6 +43,7 @@ export function StoreProvider({ children }) {
   const [tables, setTables] = useState([])
   const [ready, setReady] = useState(false)
   const [outletId, setOutletId] = useState(null)
+  const [outlet, setOutlet] = useState(null)
 
   // Boot: load outlet + seed data, then subscribe to realtime changes.
   useEffect(() => {
@@ -67,12 +68,15 @@ export function StoreProvider({ children }) {
       .subscribe()
 
     async function boot() {
-      const { data: out } = await supabase.from('outlets').select('id').limit(1)
-      const oid = out?.[0]?.id
-      if (mounted) setOutletId(oid)
+      const { data: out } = await supabase.from('outlets').select('*').limit(1)
+      const oId = out?.[0]
+      if (mounted) {
+        setOutletId(oId?.id || null)
+        setOutlet(oId || null)
+      }
 
       const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
-        oid ? supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(30) : { data: [] },
+        oId ? supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(30) : { data: [] },
         supabase.from('menu_items').select('*').order('name'),
         supabase.from('table_spots').select('*').order('number'),
       ])
@@ -104,6 +108,13 @@ export function StoreProvider({ children }) {
       tables,
       ready,
       outletId,
+      outlet,
+      updateOutlet: async (patch) => {
+        if (!outletId) return
+        const { data, error } = await supabase.from('outlets').update(patch).eq('id', outletId).select().single()
+        if (error) throw error
+        setOutlet(data)
+      },
       accept: (id) => update(id, { status: STATUS.SENT }),
       markCashPaid: (id) => update(id, { payment: 'Tunai diterima', paymentTone: 'paid', status: STATUS.CASHIER }),
       reject: (id) => update(id, { status: STATUS.REJECTED }),
@@ -156,7 +167,7 @@ export function StoreProvider({ children }) {
         return (data || []).map(normalizeOrder)
       },
     }
-  }, [orders, menu, tables, ready, outletId])
+  }, [orders, menu, tables, ready, outletId, outlet])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

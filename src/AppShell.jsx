@@ -36,7 +36,7 @@ function Sidebar({ active }) {
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <button type="button" className="nav-item" onClick={() => go('kasir')}><Icon name="settings" /><span>Pengaturan</span></button>
+        <button type="button" aria-current={active === 'Pengaturan' ? 'page' : undefined} className={`nav-item ${active === 'Pengaturan' ? 'active' : ''}`} onClick={() => go('pengaturan')}><Icon name="settings" /><span>Pengaturan</span></button>
         <div className="help-card"><span className="help-mark">?</span><div><b>Butuh bantuan?</b><small>Buka pusat panduan</small></div><span className="icon"><Ic.arrowUpRight width="16" height="16" /></span></div>
         <div className="user-row"><div className="avatar">RA</div><span><b>Raka Adi</b><small>Kasir · Shift pagi</small></span><span className="icon"><Ic.more width="17" height="17" /></span></div>
       </div>

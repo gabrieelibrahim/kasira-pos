@@ -14,6 +14,7 @@ import Qr from './Qr'
 import Cashier from './views/Cashier'
 import Menu from './views/Menu'
 import Report from './views/Report'
+import Settings from './views/Settings'
 import { StoreProvider } from './state.jsx'
 import './styles.css'
 
@@ -34,6 +35,7 @@ function App() {
   if (route === 'qr') return <Qr />
   if (route === 'menu' || route === 'stok') return <Menu />
   if (route === 'laporan' || route === 'report') return <Report />
+  if (route === 'pengaturan' || route === 'settings' || route === 'setting') return <Settings />
   if (route === 'meja' || route === 'pelanggan') return <Customer />
   return <Cashier />
 }

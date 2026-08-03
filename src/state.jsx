@@ -17,7 +17,7 @@ export const STATUS = {
 }
 
 export const isActionable = (o) => o.status === STATUS.PAYMENT || o.status === STATUS.CASHIER
-export const isInProduction = (o) => [STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED, STATUS.DONE].includes(o.status)
+export const isInProduction = (o) => [STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED].includes(o.status)
 
 // Normalize a table number for matching order.table_label ("Meja 03" -> "3").
 const normNum = (t) => String(t ?? '').replace(/^0+(?=\d)/, '')

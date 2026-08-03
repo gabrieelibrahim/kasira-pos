@@ -1,6 +1,6 @@
 // Portal meja (kasir) — live table monitoring. Occupancy is derived from
 // orders (pay / eating / done) plus the persisted spot status. A done table
-// waits for staff to tap "Tandai kosong" after cleaning, then flips to empty.
+// is returned to empty by a single cashier tap on "Kosongkan meja".
 
 import React, { useMemo, useState } from 'react'
 import { deriveTableStatus, money, useStore } from '../state.jsx'
@@ -11,7 +11,7 @@ const TONES = [
   { tone: 'empty', label: 'Kosong' },
   { tone: 'occupied', label: 'Makan' },
   { tone: 'pay', label: 'Bayar' },
-  { tone: 'done', label: 'Selesai / perlu dibersihkan' },
+  { tone: 'done', label: 'Selesai' },
 ]
 
 function Tables() {
@@ -32,11 +32,11 @@ function Tables() {
   return (
     <AppShell active="Portal meja" breadcrumb="Portal meja">
       <section className="page-heading">
-        <div><p className="eyebrow">MONITORING MEJA</p><h1>Portal meja</h1><p className="heading-sub">Status meja dihitung realtime dari order. Meja selesai menunggu konfirmasi bersih oleh petugas.</p></div>
+        <div><p className="eyebrow">MONITORING MEJA</p><h1>Portal meja</h1><p className="heading-sub">Status meja dihitung realtime dari order. Meja selesai makan bisa langsung dijadikan kosong oleh kasir.</p></div>
       </section>
 
       <section className="table-panel">
-        <div className="panel-heading"><div><h2>Status meja</h2><p>{derived.length} meja · {counts.occupied || 0} makan · {counts.pay || 0} bayar · {counts.done || 0} perlu dibersihkan</p></div></div>
+        <div className="panel-heading"><div><h2>Status meja</h2><p>{derived.length} meja · {counts.occupied || 0} makan · {counts.pay || 0} bayar · {counts.done || 0} selesai</p></div></div>
         <div className="table-grid">
           {derived.map((t) => (
             <button type="button" key={t.id} className={`table-cell ${t.tone} is-clickable ${selected?.id === t.id ? 'selected' : ''}`} onClick={() => setSelId(t.id)}>
@@ -54,7 +54,7 @@ function Tables() {
           <div className="panel-heading report-panel-head">
             <div><h2>{selected.label}</h2><p>Status: {selected.spotLabel} · {selected.orders.length} order terakhir</p></div>
             {selected.tone === 'done' && (
-              <button type="button" className="primary-button" disabled={busy} onClick={clear} style={{ width: 'auto', padding: '0 18px' }}>{busy ? 'Memproses…' : 'Tandai kosong'}</button>
+              <button type="button" className="primary-button" disabled={busy} onClick={clear} style={{ width: 'auto', padding: '0 18px' }}>{busy ? 'Memproses…' : 'Kosongkan meja'}</button>
             )}
             {selected.tone !== 'done' && selected.tone !== 'empty' && (
               <button type="button" className="secondary-button" onClick={() => window.location.hash = '#/kasir'}>Buka di kasir</button>

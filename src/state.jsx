@@ -19,6 +19,28 @@ export const STATUS = {
 export const isActionable = (o) => o.status === STATUS.PAYMENT || o.status === STATUS.CASHIER
 export const isInProduction = (o) => [STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED, STATUS.DONE].includes(o.status)
 
+// Normalize a table number for matching order.table_label ("Meja 03" -> "3").
+const normNum = (t) => String(t ?? '').replace(/^0+(?=\d)/, '')
+
+// Derive each table's monitoring state from orders + persisted spot status.
+// Precedence: pay (needs action) > occupied (eating) > done (needs cleaning) > empty.
+export function deriveTableStatus(spots, orders) {
+  if (!spots) return []
+  const live = orders.filter((o) => o.status !== STATUS.REJECTED)
+  return spots.map((spot) => {
+    const key = normNum(spot.number ?? spot.label)
+    const list = live
+      .filter((o) => normNum(o.table?.replace(/^meja\s*/i, '')) === key)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    let tone = 'empty'
+    let label = 'Kosong'
+    if (list.some(isActionable)) { tone = 'pay'; label = 'Bayar' }
+    else if (list.some(isInProduction)) { tone = 'occupied'; label = 'Makan' }
+    else if (list.length > 0 && spot.status !== 'empty') { tone = 'done'; label = 'Selesai' }
+    return { id: spot.id, number: spot.number, label: `Meja ${String(spot.number ?? '').padStart(2, '0')}`, tone, spotLabel: label, orders: list, raw: spot }
+  })
+}
+
 const StoreContext = createContext(null)
 
 const normalizeOrder = (o) => ({
@@ -28,6 +50,7 @@ const normalizeOrder = (o) => ({
   note: o.note || '',
   status: o.status,
   total: Number(o.total || 0),
+  payment_method: o.payment_method,
   payment: o.payment_status === 'paid' ? (o.payment_method === 'cash' ? 'Tunai diterima' : 'QRIS terkonfirmasi') : (o.payment_method === 'cash' ? 'Menunggu tunai' : 'Menunggu QRIS'),
   paymentTone: o.payment_status === 'paid' ? 'paid' : 'cash',
   lines: Array.isArray(o.lines) ? o.lines : [],
@@ -64,6 +87,9 @@ export function StoreProvider({ children }) {
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'menu_items' }, (payload) => {
         if (mounted) setMenu((prev) => prev.filter((m) => m.id !== payload.old.id))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'table_spots' }, (payload) => {
+        if (mounted) setTables((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)))
       })
       .subscribe()
 
@@ -146,9 +172,12 @@ export function StoreProvider({ children }) {
         await supabase.from('menu_items').delete().eq('id', id)
       },
       submitCustomerOrder: async (order) => {
+        const tableKey = normNum(order.table?.replace(/^meja\s*/i, ''))
+        const spot = tables.find((t) => normNum(t.number ?? t.label) === tableKey)
+        if (spot?.id) await supabase.from('table_spots').update({ status: 'occupied' }).eq('id', spot.id)
         const { data, error } = await supabase.from('orders').insert({
           outlet_id: outletId,
-          table_spot_id: null,
+          table_spot_id: spot?.id || null,
           table_label: order.table,
           customer_name: order.customer,
           note: order.note,
@@ -165,6 +194,16 @@ export function StoreProvider({ children }) {
         const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: true })
         if (error) throw error
         return (data || []).map(normalizeOrder)
+      },
+      todayOrders: async () => {
+        const start = new Date(); start.setHours(0, 0, 0, 0)
+        const { data, error } = await supabase.from('orders').select('*').gte('created_at', start.toISOString()).order('created_at', { ascending: false })
+        if (error) throw error
+        return (data || []).map(normalizeOrder)
+      },
+      clearTable: async (spotId) => {
+        await supabase.from('table_spots').update({ status: 'empty' }).eq('id', spotId)
+        setTables((prev) => prev.map((t) => (t.id === spotId ? { ...t, status: 'empty' } : t)))
       },
     }
   }, [orders, menu, tables, ready, outletId, outlet])

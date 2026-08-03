@@ -5,7 +5,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { money, STATUS, useStore } from './state.jsx'
 import { Ic } from './icons.jsx'
-import AppShell from './AppShell.jsx'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
@@ -14,10 +13,6 @@ const tableFromParams = () => {
   const q = new URLSearchParams(window.location.hash.split('?')[1] || '')
   return q.get('meja') || q.get('table') || '01'
 }
-
-// Kasir mode: opened without ?meja= (from the kasir nav) → show the kasir
-// chrome. Customer mode: opened via table QR (?meja=5) → clean customer UI.
-const isKasirMode = () => !new URLSearchParams(window.location.hash.split('?')[1] || '').has('meja') && !new URLSearchParams(window.location.hash.split('?')[1] || '').has('table')
 
 const MENU = [
   { id: 'nasi-goreng', name: 'Nasi Goreng Kampung', price: 42000, cat: 'Makanan', desc: 'Beras wangi, ayam suwir, telur, acar.', modifier: ['Level pedas', 'Tanpa bawang', 'Telur tambah'] },
@@ -61,7 +56,6 @@ function Customer() {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [placedId, setPlacedId] = useState(null)
-  const [kasir] = useState(isKasirMode)
   const tableName = `Meja ${table}`
 
   // customer order = the order this session just placed
@@ -167,7 +161,7 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            {!kasir && <button type="button" className="back-button" aria-label="Kembali ke menu" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>}
+            <button type="button" className="back-button" aria-label="Kembali ke menu" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>
             <div><h1>Keranjang</h1><p>{tableName} · {cart.reduce((n, l) => n + l.qty, 0)} item</p></div>
           </header>
           {cart.length === 0 ? (
@@ -215,7 +209,7 @@ function Customer() {
       <main className="customer">
         <div className="customer-shell">
           <header className="customer-header">
-            {!kasir && <button type="button" className="back-button" aria-label="Kembali ke keranjang" onClick={() => setRoute('cart')}><Ic.back width="20" height="20" /></button>}
+            <button type="button" className="back-button" aria-label="Kembali ke keranjang" onClick={() => setRoute('cart')}><Ic.back width="20" height="20" /></button>
             <div><h1>Pembayaran</h1><p>{tableName}</p></div>
           </header>
           <section className="checkout-summary">
@@ -251,7 +245,7 @@ function Customer() {
     <main className="customer">
       <header className="customer-top">
         <div className="customer-top-left">
-          {!kasir && <button type="button" className="back-button" aria-label="Kembali" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>}
+          <button type="button" className="back-button" aria-label="Kembali" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>
           <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
         </div>
         <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === tableName).length} pesanan aktif</span>
@@ -280,20 +274,6 @@ function Customer() {
     </main>
   )
 
-  if (kasir) {
-    return (
-      <AppShell active="Portal meja" breadcrumb={`Portal meja · ${tableName}`}>
-        <section className="page-heading">
-          <div>
-            <p className="eyebrow">PORTAL PELANGGAN</p>
-            <h1>Portal meja</h1>
-            <p className="heading-sub">Pratinjau tampilan pelanggan untuk {tableName}. Arahkan kursor ke tombol + untuk simulasi.</p>
-          </div>
-        </section>
-        <div className="portal-preview">{menuPortal}</div>
-      </AppShell>
-    )
-  }
   return menuPortal
 }
 

@@ -4,12 +4,12 @@
 
 import React from 'react'
 import { Ic } from './icons.jsx'
-import { useStore } from './state.jsx'
+import { isActionable, useStore } from './state.jsx'
 
 // icon name -> route
 const NAV = [
   { label: 'Ringkasan', icon: 'dashboard', route: '' },
-  { label: 'Order masuk', icon: 'inbox', route: 'kasir' },
+  { label: 'Order masuk', icon: 'inbox', route: 'kasir', count: true },
   { label: 'Layar dapur', icon: 'kitchen', route: 'kds' },
   { label: 'Portal meja', icon: 'tables', route: 'meja' },
   { label: 'QR meja', icon: 'qr', route: 'qr' },
@@ -22,19 +22,22 @@ function Icon({ name, size = 18 }) {
   return <span aria-hidden="true" className="nav-icon">{render({ width: size, height: size })}</span>
 }
 
-function Sidebar({ active }) {
-  const { outlet } = useStore()
+function Sidebar({ active, badge }) {
+  const { outlet, orders } = useStore()
   const outletName = outlet?.name || 'kasira'
+  const pending = typeof badge === 'number' ? badge : orders.filter(isActionable).length
   const go = (route) => { window.location.hash = '#/' + route }
   return (
     <aside className="sidebar">
       <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
+      <div className="outlet-switcher"><span className="live-dot" /> <span><b>{outletName}</b><small>Shift pagi · Aktif</small></span><span className="icon"><Ic.chevron width="16" height="16" /></span></div>
       <nav aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
         {NAV.map((item) => (
           <button type="button" key={item.label} aria-current={active === item.label ? 'page' : undefined} className={`nav-item ${active === item.label ? 'active' : ''}`} onClick={() => go(item.route)}>
             <Icon name={item.icon} />
             <span>{item.label}</span>
+            {item.count && pending > 0 && <em>{pending}</em>}
           </button>
         ))}
       </nav>
@@ -63,10 +66,10 @@ function Topbar({ breadcrumb }) {
   )
 }
 
-export default function AppShell({ active, breadcrumb, children }) {
+export default function AppShell({ active, breadcrumb, badge, children }) {
   return (
     <div className="app-shell">
-      <Sidebar active={active} />
+      <Sidebar active={active} badge={badge} />
       <main className="main-content">
         <Topbar breadcrumb={breadcrumb} />
         <div className="content-wrap">{children}</div>

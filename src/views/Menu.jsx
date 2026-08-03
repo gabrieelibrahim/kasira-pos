@@ -5,13 +5,13 @@
 import React, { useMemo, useState } from 'react'
 import { money, useStore } from '../state.jsx'
 import { Ic } from '../icons.jsx'
+import AppShell from '../AppShell.jsx'
 
 const CATEGORIES = ['Makanan', 'Minuman', 'Camilan']
 const EMPTY_FORM = { name: '', price: '', category: 'Makanan', description: '', modifier: '', available: true }
 
 function Menu() {
-  const { menu, outlet, upsertItem, toggleAvailability, deleteItem } = useStore()
-  const outletName = outlet?.name || 'kasira'
+  const { menu, upsertItem, toggleAvailability, deleteItem } = useStore()
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState('Semua')
   const [formOpen, setFormOpen] = useState(false)
@@ -72,32 +72,8 @@ function Menu() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
-        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon"><Ic.dashboard width="18" height="18" /></span><span>Ringkasan</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.inbox width="18" height="18" /></span><span>Order masuk</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kds'}><span className="nav-icon"><Ic.kitchen width="18" height="18" /></span><span>Layar dapur</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/meja'}><span className="nav-icon"><Ic.tables width="18" height="18" /></span><span>Portal meja</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/qr'}><span className="nav-icon"><Ic.qr width="18" height="18" /></span><span>QR meja</span></button>
-          <button type="button" className="nav-item active" aria-current="page" onClick={() => {}}><span className="nav-icon"><Ic.menu width="18" height="18" /></span><span>Menu & stok</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/laporan'}><span className="nav-icon"><Ic.report width="18" height="18" /></span><span>Laporan</span></button>
-        </nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/pengaturan'}><span className="nav-icon"><Ic.settings width="18" height="18" /></span><span>Pengaturan</span></button></div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span className="crumb-sep">/</span><b>Menu & stok</b></div>
-          <div className="top-actions">
-            <div className="connection"><span className="live-dot" /> Realtime aktif</div>
-            <button type="button" className="primary-button" onClick={openAdd}><span className="btn-plus"><Ic.plus width="16" height="16" /></span> Tambah item</button>
-          </div>
-        </header>
-
-        <div className="content-wrap">
-          <section className="page-heading"><div><p className="eyebrow">KATALOG OUTLET</p><h1>Menu & stok</h1></div></section>
+    <AppShell active="Menu & stok" breadcrumb="Menu & stok">
+      <section className="page-heading"><div><p className="eyebrow">KATALOG OUTLET</p><h1>Menu & stok</h1></div><button type="button" className="primary-button" onClick={openAdd}><span className="btn-plus"><Ic.plus width="16" height="16" /></span> Tambah item</button></section>
 
           <section className="stats-row">
             <div className="stat-card"><div className="stat-icon avail"><Ic.check width="20" height="20" /></div><div><b>{availableCount}</b><span>Tersedia</span></div></div>
@@ -131,8 +107,6 @@ function Menu() {
               {items.length === 0 && <div className="menu-empty">Tidak ada item {cat === 'Semua' ? '' : `di ${cat}`}. Tambahkan item baru.</div>}
             </div>
           </section>
-        </div>
-      </main>
 
       {formOpen && (
         <div className="modal-backdrop" role="presentation">
@@ -170,7 +144,7 @@ function Menu() {
       )}
 
       {notice && <div className="toast" role="status"><span className="toast-check"><Ic.check width="14" height="14" /></span>{notice}</div>}
-    </div>
+    </AppShell>
   )
 }
 

@@ -6,6 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { money, useStore } from '../state.jsx'
 import { Ic } from '../icons.jsx'
+import AppShell from '../AppShell.jsx'
 
 const PERIODS = [
   { id: 'today', label: 'Hari ini' },
@@ -34,8 +35,7 @@ const parseLine = ([name, price, note]) => {
 }
 
 function Report() {
-  const { reportOrders, outlet } = useStore()
-  const outletName = outlet?.name || 'kasira'
+  const { reportOrders } = useStore()
   const [period, setPeriod] = useState('today')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -103,30 +103,7 @@ function Report() {
   const statusList = Object.entries(byStatus).sort((a, b) => b[1] - a[1])
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
-        <nav aria-label="Navigasi utama"><p className="nav-label">Workspace</p>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/'}><span className="nav-icon"><Ic.dashboard width="18" height="18" /></span><span>Ringkasan</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kasir'}><span className="nav-icon"><Ic.inbox width="18" height="18" /></span><span>Order masuk</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/kds'}><span className="nav-icon"><Ic.kitchen width="18" height="18" /></span><span>Layar dapur</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/meja'}><span className="nav-icon"><Ic.tables width="18" height="18" /></span><span>Portal meja</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/qr'}><span className="nav-icon"><Ic.qr width="18" height="18" /></span><span>QR meja</span></button>
-          <button type="button" className="nav-item" onClick={() => window.location.hash = '#/menu'}><span className="nav-icon"><Ic.menu width="18" height="18" /></span><span>Menu & stok</span></button>
-          <button type="button" className="nav-item active" aria-current="page" onClick={() => {}}><span className="nav-icon"><Ic.report width="18" height="18" /></span><span>Laporan</span></button>
-        </nav>
-        <div className="sidebar-bottom"><button type="button" className="nav-item" onClick={() => window.location.hash = '#/pengaturan'}><span className="nav-icon"><Ic.settings width="18" height="18" /></span><span>Pengaturan</span></button></div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span className="crumb-sep">/</span><b>Laporan</b></div>
-          <div className="top-actions">
-            <div className="connection"><span className="live-dot" /> Realtime aktif</div>
-          </div>
-        </header>
-
-        <div className="content-wrap">
+    <AppShell active="Laporan" breadcrumb="Laporan">
           <section className="page-heading">
             <div>
               <p className="eyebrow">ANALITIK PENJUALAN</p>
@@ -211,9 +188,7 @@ function Report() {
               </section>
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </AppShell>
   )
 }
 

@@ -41,7 +41,6 @@ function Dashboard() {
 
   return (
     <AppShell active="Ringkasan" breadcrumb="Ringkasan">
-      <section className="page-heading"><div><p className="eyebrow">RINGKASAN HARI INI</p><h1>Ringkasan</h1><p className="heading-sub">Posisi outlet hari ini, diperbarui realtime.</p></div></section>
 
       <section className="stats-row cards-4">
         <div className="stat-card"><div className="stat-icon avail"><Ic.report width="20" height="20" /></div><div><b>{money(revenue)}</b><span>Penjualan hari ini</span></div></div>

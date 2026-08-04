@@ -20,7 +20,6 @@ function Sidebar({ active, badge }) {
   return (
     <aside className="sidebar">
       <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
-      <div className="outlet-switcher"><span className="live-dot" /> <span><b>{outletName}</b><small>Shift pagi · Aktif</small></span><span className="icon"><Ic.chevron width="16" height="16" /></span></div>
       <nav aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
         {NAV.map((item) => (
@@ -48,7 +47,6 @@ function Topbar({ breadcrumb }) {
     <header className="topbar">
       <div className="breadcrumb"><span>{outletName}</span><span className="crumb-sep">/</span><b>{breadcrumb}</b></div>
       <div className="top-actions">
-        <div className="connection"><span className="live-dot" /> Realtime aktif</div>
         <button type="button" className="icon-button" aria-label="Fokus ke pencarian" onClick={() => document.querySelector('.search-field input')?.focus()}><span className="icon"><Ic.search width="17" height="17" /></span></button>
         <button type="button" className="icon-button notification" aria-label="Buka notifikasi"><span className="icon"><Ic.bell width="17" height="17" /></span><i /></button>
         <div className="top-avatar" aria-label="Raka Adi">RA</div>

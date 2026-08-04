@@ -30,4 +30,5 @@ export const Ic = {
   trash: (p) => <svg {...P} viewBox="0 0 24 24" {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg>,
   edit: (p) => <svg {...P} viewBox="0 0 24 24" {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>,
   home: (p) => <svg {...P} viewBox="0 0 24 24" {...p}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg>,
+  power: (p) => <svg {...P} viewBox="0 0 24 24" {...p}><path d="M12 2v9" /><path d="M18.4 6.6a9 9 0 1 1-12.8 0" /></svg>,
 }

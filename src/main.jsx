@@ -17,7 +17,8 @@ import Menu from './views/Menu'
 import Report from './views/Report'
 import Settings from './views/Settings'
 import Tables from './views/Tables'
-import { StoreProvider } from './state.jsx'
+import { AuthProvider, StoreProvider, useAuth } from './state.jsx'
+import Login from './Login.jsx'
 import './styles.css'
 
 // Hash routes are #/path?query — strip the query string so 'meja?meja=5'
@@ -26,12 +27,30 @@ const routeFromHash = () => window.location.hash.replace(/^#\//, '').split('?')[
 
 function App() {
   const [route, setRoute] = useState(routeFromHash)
+  const { user } = useAuth()
 
   useEffect(() => {
     const onHashChange = () => setRoute(routeFromHash())
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  // Public: the customer QR portal is never gated.
+  const isCustomer = route === 'meja' && /[?&](meja|table)=/.test(window.location.hash)
+  if (isCustomer) return <Customer />
+
+  // Protected: everything else requires a logged-in staff member.
+  if (!user) return <Login />
+  if (route === 'pengaturan' && user.role !== 'admin') {
+    return (
+      <div className="access-denied">
+        <div className="brand-mark">K</div>
+        <h1>Akses dibatasi</h1>
+        <p>Halaman Pengaturan khusus admin. Kembali ke panel kasir.</p>
+        <button type="button" className="primary-button" onClick={() => { window.location.hash = '#/' }}>Kembali</button>
+      </div>
+    )
+  }
 
   if (route === 'kds') return <Kds />
   if (route === 'qr') return <Qr />
@@ -48,7 +67,9 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(
-  <StoreProvider>
-    <App />
-  </StoreProvider>,
+  <AuthProvider>
+    <StoreProvider>
+      <App />
+    </StoreProvider>
+  </AuthProvider>,
 )

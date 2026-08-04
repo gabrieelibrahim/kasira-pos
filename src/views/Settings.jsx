@@ -3,11 +3,13 @@
 // Also hosts the guarded reset actions (reset all / end-of-day) with PIN.
 
 import React, { useEffect, useState } from 'react'
-import { useStore } from '../state.jsx'
+import { useAuth, useStore } from '../state.jsx'
 import AppShell from '../AppShell.jsx'
 
 function Settings() {
   const { outlet, updateOutlet, verifyResetPin, resetAll, resetDay } = useStore()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [form, setForm] = useState({ name: '', address: '', phone: '', open_time: '', close_time: '', tax_rate: 11 })
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -115,8 +117,8 @@ function Settings() {
         </div>
       </form>
 
-      {/* Reset transaksi */}
-      <section className="menu-panel report-panel settings-reset">
+      {/* Reset transaksi (admin only) */}
+      {isAdmin && <section className="menu-panel report-panel settings-reset">
         <div className="panel-heading report-panel-head"><div><h2>Reset transaksi</h2><p>Kembalikan aplikasi ke kondisi awal. Daftar menu tidak ikut dihapus.</p></div></div>
 
         {step === 'idle' && (
@@ -161,7 +163,7 @@ function Settings() {
             <button type="button" className="primary-button" onClick={closeDone}>Oke</button>
           </div>
         )}
-      </section>
+      </section>}
     </AppShell>
   )
 }

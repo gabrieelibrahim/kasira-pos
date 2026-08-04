@@ -2,7 +2,7 @@
 // Reads the shared store, so accepted orders from the cashier appear here
 // automatically, and production status advances are visible everywhere.
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { STATUS, isInProduction, money, useStore } from './state.jsx'
 import { Ic } from './icons.jsx'
 import { useShortcuts } from './useShortcuts.js'
@@ -46,6 +46,27 @@ function KdsCard({ order, onAdvance }) {
   )
 }
 
+// Two-tone "ding-dong" chime via the Web Audio API (no audio asset).
+function playChime() {
+  const Ctx = window.AudioContext || window.webkitAudioContext
+  if (!Ctx) return
+  const ctx = new Ctx()
+  if (ctx.state === 'suspended') ctx.resume()
+  const now = ctx.currentTime
+  const tone = (freq, start, dur, vol = 0.16) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain()
+    o.type = 'sine'; o.frequency.value = freq
+    o.connect(g); g.connect(ctx.destination)
+    g.gain.setValueAtTime(0, start)
+    g.gain.linearRampToValueAtTime(vol, start + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.start(start); o.stop(start + dur + 0.05)
+  }
+  tone(880, now, 0.18)            // A5
+  tone(1174.66, now + 0.15, 0.3)  // D6 — two-tone, ~0.5s total
+  window.setTimeout(() => ctx.close(), 900)
+}
+
 function Kds() {
   const { orders, advance } = useStore()
   const [station, setStation] = useState('semua')
@@ -53,6 +74,18 @@ function Kds() {
 
   const boardOrders = orders.filter(isInProduction)
   const visible = useMemo(() => boardOrders.filter((o) => station === 'semua' || o.station === station), [boardOrders, station])
+
+  // Chime when a NEW order appears on the board (e.g. the cashier accepts one
+  // while the KDS is open). The first effect run snapshots existing ids so
+  // mounting/navigating with pending orders is silent.
+  const seenRef = useRef(null)
+  useEffect(() => {
+    const ids = new Set(boardOrders.map((o) => o.id))
+    if (seenRef.current === null) { seenRef.current = ids; return }
+    const fresh = boardOrders.filter((o) => !seenRef.current.has(o.id))
+    if (fresh.length) playChime()
+    seenRef.current = ids
+  }, [boardOrders])
 
   return (
     <main className="kds">

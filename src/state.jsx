@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase.js'
+import { clearSession, getStoredUser, saveSession } from './auth.js'
 
 export const STATUS = {
   PAYMENT: 'Menunggu pembayaran',
@@ -42,6 +43,39 @@ export function deriveTableStatus(spots, orders) {
 }
 
 const StoreContext = createContext(null)
+
+const AuthContext = createContext(null)
+
+// App-level staff auth. Session is restored synchronously from localStorage so
+// there's no async flash of the login screen on reload.
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => getStoredUser())
+
+  const login = async (username, pin) => {
+    const { data, error } = await supabase.rpc('login_staff', {
+      p_username: String(username ?? '').trim(),
+      p_pin: String(pin ?? ''),
+    })
+    if (error) throw error
+    if (!data || data.length === 0) throw new Error('invalid')
+    const u = data[0]
+    const session = { id: u.id, name: u.name, username: u.username, role: u.role, outletId: u.outlet_id }
+    saveSession(session)
+    setUser(session)
+    return session
+  }
+
+  const logout = () => { clearSession(); setUser(null) }
+
+  const value = useMemo(() => ({ user, login, logout }), [user])
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
+  return ctx
+}
 
 const normalizeOrder = (o) => ({
   id: o.id,
@@ -207,9 +241,9 @@ export function StoreProvider({ children }) {
         setTables((prev) => prev.map((t) => (t.id === spotId ? { ...t, status: 'empty' } : t)))
       },
       verifyResetPin: async (pin) => {
-        const { data, error } = await supabase.from('outlets').select('reset_pin').limit(1)
+        const { data, error } = await supabase.rpc('verify_reset_pin', { p_pin: String(pin ?? '').trim() })
         if (error) throw error
-        return data?.[0]?.reset_pin === String(pin ?? '').trim()
+        return Boolean(data)
       },
       // Reset seluruh aplikasi dari nol: hapus permanen semua order + kosongkan semua meja.
       resetAll: async () => {

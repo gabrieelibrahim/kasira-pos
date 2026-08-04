@@ -8,10 +8,10 @@ import { useEffect } from 'react'
 export const NAV = [
   { key: 1, label: 'Ringkasan', icon: 'dashboard', route: '' },
   { key: 2, label: 'Order masuk', icon: 'inbox', route: 'kasir', count: true },
-  { key: 3, label: 'Layar dapur', icon: 'kitchen', route: 'kds' },
-  { key: 4, label: 'Portal meja', icon: 'tables', route: 'meja' },
-  { key: 5, label: 'QR meja', icon: 'qr', route: 'qr' },
-  { key: 6, label: 'Menu & stok', icon: 'menu', route: 'menu' },
+  { key: 3, label: 'Portal meja', icon: 'tables', route: 'meja' },
+  { key: 4, label: 'QR meja', icon: 'qr', route: 'qr' },
+  { key: 5, label: 'Menu & stok', icon: 'menu', route: 'menu' },
+  { key: 6, label: 'Layar dapur', icon: 'kitchen', route: 'kds' },
   { key: 7, label: 'Laporan', icon: 'report', route: 'laporan' },
 ]
 

@@ -6,9 +6,19 @@ import React, { useMemo, useState } from 'react'
 import { money, useStore } from '../state.jsx'
 import { Ic } from '../icons.jsx'
 import AppShell from '../AppShell.jsx'
+import { removeMenuItemImage, storageUrl, uploadMenuItemImage } from '../supabase.js'
 
 const CATEGORIES = ['Makanan', 'Minuman', 'Camilan']
-const EMPTY_FORM = { name: '', price: '', category: 'Makanan', description: '', modifier: '', available: true }
+const EMPTY_FORM = { name: '', price: '', category: 'Makanan', description: '', modifier: '', available: true, image: '' }
+
+function ImagePreview({ src, alt, onRemove }) {
+  return (
+    <div className="image-preview">
+      <img src={src} alt={alt} />
+      <button type="button" className="image-preview-remove" aria-label="Hapus gambar" onClick={onRemove}><span aria-hidden="true">×</span></button>
+    </div>
+  )
+}
 
 function Menu() {
   const { menu, upsertItem, toggleAvailability, deleteItem } = useStore()
@@ -37,6 +47,7 @@ function Menu() {
     setForm({
       name: item.name, price: String(item.price), category: item.category,
       description: item.description || '', modifier: (item.modifier || []).join(', '), available: item.available,
+      image: item.image || '',
     })
     setFormOpen(true)
   }
@@ -46,6 +57,11 @@ function Menu() {
     if (!form.name.trim() || !form.price) return
     setBusy(true)
     try {
+      // Upload a newly-picked image; keep the existing one otherwise.
+      let image = form.image
+      if (image && image.startsWith('data:') && form.imageFile) {
+        image = await uploadMenuItemImage(form.imageFile)
+      }
       await upsertItem({
         name: form.name.trim(),
         price: Number(form.price),
@@ -53,11 +69,24 @@ function Menu() {
         description: form.description.trim(),
         modifier: form.modifier.split(',').map((s) => s.trim()).filter(Boolean),
         available: form.available,
+        image,
       }, editing?.id)
       flash(editing ? 'Item diperbarui.' : 'Item ditambahkan.')
       setFormOpen(false); setForm(EMPTY_FORM); setEditing(null)
     } catch { flash('Gagal menyimpan item.') } finally { setBusy(false) }
   }
+
+  // Pick an image file -> store it as a data URL for preview + a File ref for upload.
+  const pickImage = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setForm((prev) => ({ ...prev, image: reader.result, imageFile: file }))
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const clearImage = () => setForm((prev) => ({ ...prev, image: '', imageFile: null }))
 
   const toggle = async (item) => {
     try { await toggleAvailability(item.id, !item.available); flash(item.available ? `${item.name} ditandai habis.` : `${item.name} tersedia lagi.`) }
@@ -67,8 +96,12 @@ function Menu() {
   const remove = async () => {
     if (!confirmDel) return
     setBusy(true)
-    try { await deleteItem(confirmDel.id); flash(`${confirmDel.name} dihapus.`); setConfirmDel(null) }
-    catch { flash('Gagal menghapus item.') } finally { setBusy(false) }
+    try {
+      if (confirmDel.image) await removeMenuItemImage(confirmDel.image)
+      await deleteItem(confirmDel.id)
+      flash(`${confirmDel.name} dihapus.`)
+      setConfirmDel(null)
+    } catch { flash('Gagal menghapus item.') } finally { setBusy(false) }
   }
 
   return (
@@ -91,7 +124,7 @@ function Menu() {
               <div className="menu-table-head"><span>Item</span><span>Kategori</span><span>Harga</span><span>Stok</span><span className="right">Aksi</span></div>
               {items.map((m) => (
                 <div className="menu-row" key={m.id}>
-                  <div className="menu-cell name"><span className="menu-emoji" aria-hidden="true">{m.name.slice(0, 1)}</span><div><b>{m.name}</b><small>{m.description || 'Tanpa deskripsi'}</small></div></div>
+                  <div className="menu-cell name">{m.image ? <img className="menu-thumb-img" src={storageUrl(m.image)} alt="" loading="lazy" /> : <span className="menu-emoji" aria-hidden="true">{m.name.slice(0, 1)}</span>}<div><b>{m.name}</b><small>{m.description || 'Tanpa deskripsi'}</small></div></div>
                   <div className="menu-cell"><span className="cat-pill">{m.category}</span></div>
                   <div className="menu-cell price">{money(m.price)}</div>
                   <div className="menu-cell"><label className="switch-wrap" title={m.available ? 'Tersedia' : 'Habis'}>
@@ -113,6 +146,20 @@ function Menu() {
           <form className="confirm-modal menu-form" role="dialog" aria-modal="true" aria-labelledby="menu-form-title" onSubmit={save}>
             <h2 id="menu-form-title">{editing ? `Edit ${editing.name}` : 'Tambah item'}</h2>
             <label>Nama item<input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Nasi Goreng Kampung" required /></label>
+            <div className="menu-image-row">
+              {form.image ? (
+                form.image.startsWith('data:')
+                  ? <ImagePreview src={form.image} alt="Pratinjau gambar" onRemove={clearImage} />
+                  : <ImagePreview src={storageUrl(form.image)} alt="Pratinjau gambar" onRemove={clearImage} />
+              ) : (
+                <label className="menu-image-upload">
+                  <input type="file" accept="image/*" onChange={pickImage} />
+                  <span className="menu-image-plus" aria-hidden="true">+</span>
+                  <b>Tambah gambar</b>
+                  <small>PNG/JPG · opsional</small>
+                </label>
+              )}
+            </div>
             <div className="form-grid">
               <label>Harga (Rp)<input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="42000" required /></label>
               <label>Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>

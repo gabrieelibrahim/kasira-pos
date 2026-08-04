@@ -2,7 +2,7 @@
 // orders (pay / eating / done) plus the persisted spot status. A done table
 // is returned to empty by a single cashier tap on "Kosongkan meja".
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { deriveTableStatus, money, useStore } from '../state.jsx'
 import AppShell from '../AppShell.jsx'
 
@@ -28,6 +28,18 @@ function Tables() {
     setBusy(true)
     try { await clearTable(selected.id) } finally { setBusy(false) }
   }
+
+  // Backspace empties the selected table when it's actually clearable.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const target = event.target
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+      if (typing || event.key !== 'Backspace') return
+      if (selected?.tone === 'done') clear()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selected, busy])
 
   return (
     <AppShell active="Portal meja" breadcrumb="Portal meja">

@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { money, STATUS, useStore } from './state.jsx'
 import { Ic } from './icons.jsx'
+import { storageUrl } from './supabase.js'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
@@ -34,7 +35,7 @@ function MenuCard({ item, onAdd }) {
   const mods = item.modifier || []
   return (
     <div className="menu-card">
-      <div className="menu-thumb" aria-hidden="true">{name.slice(0, 1)}</div>
+      {item.image ? <img className="menu-thumb-img-lg" src={storageUrl(item.image)} alt={name} loading="lazy" /> : <div className="menu-thumb" aria-hidden="true">{name.slice(0, 1)}</div>}
       <div className="menu-body">
         <h3>{name}</h3>
         <p>{desc}</p>
@@ -244,11 +245,7 @@ function Customer() {
   const menuPortal = (
     <main className="customer">
       <header className="customer-top">
-        <div className="customer-top-left">
-          <button type="button" className="back-button" aria-label="Kembali" onClick={() => setRoute('menu')}><Ic.back width="20" height="20" /></button>
-          <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
-        </div>
-        <span className="customer-hint">Scan dari meja · {orders.filter((o) => o.table === tableName).length} pesanan aktif</span>
+        <div className="customer-brand"><div className="brand-mark">K</div><div><strong>kasira</strong><small>{tableName}</small></div></div>
       </header>
 
       <section className="customer-hero">

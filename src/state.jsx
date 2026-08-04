@@ -142,7 +142,7 @@ export function StoreProvider({ children }) {
         setOutlet(data)
       },
       accept: (id) => update(id, { status: STATUS.SENT }),
-      markCashPaid: (id) => update(id, { payment: 'Tunai diterima', paymentTone: 'paid', status: STATUS.CASHIER }),
+      markCashPaid: (id) => update(id, { payment_status: 'paid', status: STATUS.CASHIER }),
       reject: (id) => update(id, { status: STATUS.REJECTED }),
       advance: (id) => setOrders((prev) => prev.map((o) => {
         if (o.id !== id) return o
@@ -158,6 +158,7 @@ export function StoreProvider({ children }) {
           description: item.description || '',
           modifier: item.modifier || [],
           available: Boolean(item.available),
+          image: item.image || null,
         }
         if (id) {
           await supabase.from('menu_items').update(patch).eq('id', id)

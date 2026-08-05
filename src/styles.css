@@ -352,6 +352,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .cash-preview-field input:focus { border-color: var(--primary); }
 .cash-preview-field { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .cash-preview-field input { width: 100%; }
+.cash-change { border-top: 1px dashed var(--border); margin-top: 4px; padding-top: 6px; color: var(--muted); }
+.cash-change strong { color: var(--ink); }
+.cash-change.has-change strong { color: var(--success); font-weight: 700; }
 
 /* Settings: staff management */
 .staff-list { display: grid; gap: 4px; margin-bottom: 14px; }

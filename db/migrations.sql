@@ -97,3 +97,75 @@ alter table public.orders add column if not exists cash_received numeric;
 
 -- Backfill: order lama tidak punya diskon → total dianggap net tanpa potongan.
 update public.orders set discount = 0 where discount is null;
+
+-- 8. Staff management RPCs + manual-order attribution.
+--    All SECURITY DEFINER so the anon key can manage staff without ever
+--    reading raw PINs — every write goes through bcrypt hashing server-side.
+--    NOTE: pgcrypto's crypt/gen_salt live in the `extensions` schema, so every
+--    function that calls them must set search_path to `public, extensions`.
+alter table public.orders add column if not exists staff_id uuid;   -- kasir yang membuat order manual
+
+create or replace function public.list_staff(p_outlet_id uuid)
+returns table (id uuid, name text, username text, role text, active boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  select s.id, s.name, s.username, s.role, s.active
+  from public.staff s
+  where s.outlet_id = p_outlet_id
+  order by s.created_at;
+end;
+$$;
+
+create or replace function public.insert_staff(
+  p_outlet_id uuid, p_name text, p_username text, p_pin text, p_role text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  insert into public.staff (outlet_id, name, username, pin_hash, role, active)
+  values (p_outlet_id, p_name, lower(p_username), crypt(p_pin, gen_salt('bf', 10)), p_role, true)
+  on conflict (username) do nothing;
+end;
+$$;
+
+create or replace function public.set_staff_password(p_staff_id uuid, p_new_pin text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  update public.staff set pin_hash = crypt(p_new_pin, gen_salt('bf', 10)) where id = p_staff_id;
+end;
+$$;
+
+create or replace function public.toggle_staff(p_staff_id uuid, p_active boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.staff set active = p_active where id = p_staff_id;
+end;
+$$;
+
+create or replace function public.set_outlet_reset_pin(p_new_pin text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  update public.outlets
+     set reset_pin_hash = crypt(p_new_pin, gen_salt('bf', 10))
+   where reset_pin_hash is not null or reset_pin is not null;
+end;
+$$;

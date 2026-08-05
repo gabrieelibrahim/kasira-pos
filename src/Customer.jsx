@@ -33,6 +33,7 @@ function MenuCard({ item, onAdd }) {
   const price = Number(item.price || 0)
   const desc = item.description || item.desc || ''
   const mods = item.modifier || []
+  const [mod, setMod] = useState(mods.length ? mods[0] : '')
   return (
     <div className="menu-card">
       {item.image ? <img className="menu-thumb-img-lg" src={storageUrl(item.image)} alt={name} loading="lazy" /> : <div className="menu-thumb" aria-hidden="true">{name.slice(0, 1)}</div>}
@@ -40,9 +41,15 @@ function MenuCard({ item, onAdd }) {
         <h3>{name}</h3>
         <p>{desc}</p>
         <span className="menu-price">{money(price)}</span>
-        {mods.length > 0 && <small className="menu-modifier">{mods.length} pilihan tambahan</small>}
+        {mods.length > 0 && (
+          <label className="menu-modifier">
+            <select value={mod} onChange={(e) => setMod(e.target.value)} aria-label={`Pilihan tambahan ${name}`}>
+              {mods.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+        )}
       </div>
-      <button type="button" className="menu-add" aria-label={`Tambah ${name}`} onClick={() => onAdd(item)}><Ic.plus width="18" height="18" /></button>
+      <button type="button" className="menu-add" aria-label={`Tambah ${name}`} onClick={() => onAdd(item, mods.length ? mod : '')}><Ic.plus width="18" height="18" /></button>
     </div>
   )
 }
@@ -72,17 +79,18 @@ function Customer() {
   const visibleMenu = (menu.length ? menu : MENU).filter((m) => cat === 'Semua' || catOf(m) === cat)
     .filter((m) => !menu.length || m.available !== false)
 
-  const addItem = (item) => {
+  const addItem = (item, modifier = '') => {
     setCart((prev) => {
-      const found = prev.find((l) => l.id === item.id)
-      if (found) return prev.map((l) => l.id === item.id ? { ...l, qty: l.qty + 1 } : l)
-      return [...prev, { ...item, qty: 1 }]
+      const key = (l) => l.id + '|' + (l.modifier || '')
+      const found = prev.find((l) => key(l) === key({ id: item.id, modifier }))
+      if (found) return prev.map((l) => key(l) === key({ id: item.id, modifier }) ? { ...l, qty: l.qty + 1 } : l)
+      return [...prev, { ...item, qty: 1, modifier }]
     })
   }
 
-  const changeQty = (id, delta) => {
+  const changeQty = (id, modifier, delta) => {
     setCart((prev) => prev.flatMap((l) => {
-      if (l.id !== id) return [l]
+      if (l.id !== id || (l.modifier || '') !== (modifier || '')) return [l]
       const qty = l.qty + delta
       return qty <= 0 ? [] : [{ ...l, qty }]
     }))
@@ -105,7 +113,7 @@ function Customer() {
         station,
         customer: 'Pelanggan meja',
         note: note.trim(),
-        lines: cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), '']),
+        lines: cart.map((l) => [`${l.qty}× ${l.name}${l.modifier ? ` (${l.modifier})` : ''}`, money(l.price * l.qty), '']),
       })
       setPlacedId(id)
       setCart([])
@@ -182,12 +190,13 @@ function Customer() {
                   <div className="cart-item" key={l.id}>
                     <div className="cart-item-body">
                       <b>{l.name}</b>
+                      {l.modifier && <small className="cart-modifier">{l.modifier}</small>}
                       <span>{money(l.price)}</span>
                     </div>
                     <div className="qty-stepper">
-                      <button type="button" aria-label={`Kurangi ${l.name}`} onClick={() => changeQty(l.id, -1)}><Ic.minus width="15" height="15" /></button>
+                      <button type="button" aria-label={`Kurangi ${l.name}`} onClick={() => changeQty(l.id, l.modifier, -1)}><Ic.minus width="15" height="15" /></button>
                       <em>{l.qty}</em>
-                      <button type="button" aria-label={`Tambah ${l.name}`} onClick={() => changeQty(l.id, 1)}><Ic.plus width="15" height="15" /></button>
+                      <button type="button" aria-label={`Tambah ${l.name}`} onClick={() => changeQty(l.id, l.modifier, 1)}><Ic.plus width="15" height="15" /></button>
                     </div>
                     <strong className="cart-line-total">{money(l.price * l.qty)}</strong>
                   </div>

@@ -332,6 +332,39 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .report-row-print:hover { border-color: var(--primary); color: var(--primary); }
 .report-cell .report-sub { display: block; color: var(--faint); font-size: 10px; font-weight: 500; }
 
+/* Cashier: manual-order button + modal */
+.manual-order-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-2); color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s; }
+.manual-order-btn:hover { border-color: var(--primary); color: var(--primary); }
+.manual-form { width: min(100%, 460px); max-height: min(88vh, 640px); overflow: auto; display: grid; gap: 12px; }
+.manual-form h2 { margin: 0; }
+.manual-form p { margin: 4px 0 8px; }
+.manual-form label { display: grid; gap: 6px; color: var(--ink-subtle); font-size: 12px; font-weight: 700; }
+.manual-form select, .manual-form textarea { padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; outline: 0; color: var(--ink); background: var(--surface-1); font-size: 13px; font-weight: 400; }
+.manual-form select:focus, .manual-form textarea:focus { border-color: var(--primary); }
+.manual-items { display: grid; gap: 8px; color: var(--ink-subtle); font-size: 12px; font-weight: 700; }
+.manual-item-list { display: grid; gap: 2px; max-height: 190px; overflow: auto; padding: 4px 2px; }
+.manual-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 6px; border-radius: 8px; }
+.manual-item:hover { background: var(--surface-2); }
+.manual-item-name { min-width: 0; }
+.manual-item-name b { display: block; color: var(--ink); font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manual-item-name span { color: var(--muted); font-size: 11px; }
+.cash-preview-field input { padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; outline: 0; color: var(--ink); background: var(--surface-1); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cash-preview-field input:focus { border-color: var(--primary); }
+.cash-preview-field { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.cash-preview-field input { width: 100%; }
+
+/* Settings: staff management */
+.staff-list { display: grid; gap: 4px; margin-bottom: 14px; }
+.staff-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
+.staff-row:hover { background: var(--surface-2); }
+.staff-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 14px; }
+.staff-main { flex: 1; min-width: 0; }
+.staff-main b { display: block; color: var(--ink); font-size: 13px; font-weight: 600; }
+.staff-main span { color: var(--muted); font-size: 11px; }
+.staff-you { color: var(--faint); font-size: 11px; font-weight: 600; }
+.staff-row .row-action { color: var(--primary); background: none; border: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; }
+.staff-row .row-action:hover { background: var(--surface-2); }
+
 @media (max-width: 520px) {
   .menu-row { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }

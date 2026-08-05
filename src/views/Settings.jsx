@@ -1,18 +1,31 @@
 // Pengaturan — outlet profile stored in the shared store and persisted to
 // Supabase. Used across the kasir chrome (outlet name in the sidebar top-up).
-// Also hosts the guarded reset actions (reset all / end-of-day) with PIN.
+// Also hosts the guarded reset actions (reset all / end-of-day) with PIN, and
+// staff management (admin): add cashiers, toggle active, change PINs.
 
 import React, { useEffect, useState } from 'react'
 import { useAuth, useStore } from '../state.jsx'
 import AppShell from '../AppShell.jsx'
+import { Ic } from '../icons.jsx'
 
 function Settings() {
-  const { outlet, updateOutlet, verifyResetPin, resetAll, resetDay } = useStore()
+  const { outlet, updateOutlet, verifyResetPin, resetAll, resetDay, staffList, saveStaff, toggleStaff, changeStaffPin, changeResetPin } = useStore()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [form, setForm] = useState({ name: '', address: '', phone: '', open_time: '', close_time: '', tax_rate: 11 })
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Staff section state
+  const [staff, setStaff] = useState([])
+  const [staffErr, setStaffErr] = useState('')
+  const [staffNotice, setStaffNotice] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [addForm, setAddForm] = useState({ name: '', username: '', pin: '' })
+  const [addBusy, setAddBusy] = useState(false)
+  const [pinFor, setPinFor] = useState(null) // staff row id being PIN-changed, or 'reset' for the reset PIN
+  const [pinValue, setPinValue] = useState('')
+  const [pinBusy, setPinBusy] = useState(false)
 
   // Reset section state
   const [pin, setPin] = useState('')
@@ -82,6 +95,49 @@ function Settings() {
     setResetErr('')
   }
 
+  // Load staff list when the admin opens Settings.
+  useEffect(() => {
+    if (!isAdmin) return
+    let alive = true
+    staffList().then((d) => { if (alive) setStaff(d) }).catch(() => { if (alive) setStaffErr('Gagal memuat daftar staf.') })
+    return () => { alive = false }
+  }, [isAdmin, staffList])
+
+  const staffFlash = (msg) => { setStaffNotice(msg); window.setTimeout(() => setStaffNotice(''), 2400) }
+
+  const doAddStaff = async (e) => {
+    e.preventDefault()
+    if (!addForm.name.trim() || !addForm.username.trim() || addForm.pin.length < 4) return
+    setAddBusy(true)
+    try {
+      await saveStaff({ name: addForm.name.trim(), username: addForm.username.trim(), pin: addForm.pin, role: 'kasir' })
+      setAdding(false)
+      setAddForm({ name: '', username: '', pin: '' })
+      staffFlash('Kasir ditambahkan.')
+      setStaff(await staffList())
+    } catch { staffFlash('Gagal menambah kasir (username mungkin sudah dipakai).') } finally { setAddBusy(false) }
+  }
+
+  const doToggle = async (s) => {
+    try { await toggleStaff(s.id, !s.active); staffFlash(s.active ? `${s.name} dinonaktifkan.` : `${s.name} diaktifkan.`); setStaff(await staffList()) }
+    catch { staffFlash('Gagal mengubah status staf.') }
+  }
+
+  const openPin = (target) => { setPinFor(target); setPinValue(''); }
+  const closePin = () => { setPinFor(null); setPinValue('') }
+
+  const doPin = async (e) => {
+    e.preventDefault()
+    if (pinValue.length < 4) return
+    setPinBusy(true)
+    try {
+      if (pinFor === 'reset') await changeResetPin(pinValue)
+      else await changeStaffPin(pinFor, pinValue)
+      closePin()
+      staffFlash(pinFor === 'reset' ? 'PIN reset transaksi diganti.' : 'PIN staf diganti.')
+    } catch { staffFlash('Gagal mengganti PIN.') } finally { setPinBusy(false) }
+  }
+
   return (
     <AppShell active="Pengaturan" breadcrumb="Pengaturan">
       <section className="page-heading">
@@ -116,6 +172,37 @@ function Settings() {
           {saved && <span className="settings-saved">✓ Tersimpan</span>}
         </div>
       </form>
+
+      {/* Manajemen staf (admin only) */}
+      {isAdmin && <section className="menu-panel report-panel settings-reset">
+        <div className="panel-heading report-panel-head">
+          <div><h2>Manajemen staf</h2><p>Kelola akun kasir, status aktif, dan PIN.</p></div>
+          <button type="button" className="primary-button" style={{ width: 'auto', padding: '0 16px' }} onClick={() => setAdding(true)}><Ic.plus width="15" height="15" /> Tambah kasir</button>
+        </div>
+        {staffErr && <div className="reset-error">{staffErr}</div>}
+        <div className="staff-list">
+          {staff.map((s) => (
+            <div className="staff-row" key={s.id}>
+              <div className="staff-avatar">{s.name.slice(0, 1).toUpperCase()}</div>
+              <div className="staff-main"><b>{s.name}</b><span>@{s.username} · {s.role === 'admin' ? 'Admin' : 'Kasir'}</span></div>
+              {s.role !== 'admin' && (
+                <button type="button" className="row-action" onClick={() => openPin(s.id)}>Ganti PIN</button>
+              )}
+              {s.role === 'admin' && <span className="staff-you">Akun kamu</span>}
+              {s.role !== 'admin' && (
+                <label className="switch-wrap" title={s.active ? 'Aktif' : 'Nonaktif'}>
+                  <input type="checkbox" checked={!!s.active} onChange={() => doToggle(s)} aria-label={`Aktifkan ${s.name}`} />
+                  <span className={s.active ? 'switch on' : 'switch off'}><i /></span>
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="reset-option">
+          <div><b>PIN reset transaksi</b><span>PIN yang diminta saat mereset semua aplikasi / menutup hari. Bisa diganti kapan saja.</span></div>
+          <button type="button" className="secondary-button" onClick={() => openPin('reset')}>Ganti PIN reset</button>
+        </div>
+      </section>}
 
       {/* Reset transaksi (admin only) */}
       {isAdmin && <section className="menu-panel report-panel settings-reset">
@@ -164,6 +251,36 @@ function Settings() {
           </div>
         )}
       </section>}
+
+      {staffNotice && <div className="toast" role="status"><span className="toast-check"><Ic.check width="14" height="14" /></span>{staffNotice}</div>}
+
+      {adding && (
+        <div className="modal-backdrop" role="presentation">
+          <form className="confirm-modal menu-form" role="dialog" aria-modal="true" aria-labelledby="add-staff-title" onSubmit={doAddStaff}>
+            <h2 id="add-staff-title">Tambah kasir</h2>
+            <label>Nama<input autoFocus value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Contoh: Raka" required /></label>
+            <label>Username<input value={addForm.username} onChange={(e) => setAddForm({ ...addForm, username: e.target.value.toLowerCase() })} placeholder="Contoh: raka" required /></label>
+            <label>PIN (4-6 digit)<input type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={addForm.pin} onChange={(e) => setAddForm({ ...addForm, pin: e.target.value.replace(/\D/g, '') })} placeholder="1234" required /></label>
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={() => { setAdding(false); setAddForm({ name: '', username: '', pin: '' }) }}>Batal</button>
+              <button type="submit" className="primary-button" disabled={addBusy || !addForm.name.trim() || !addForm.username.trim() || addForm.pin.length < 4}>{addBusy ? 'Menyimpan…' : 'Tambah kasir'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {pinFor && (
+        <div className="modal-backdrop" role="presentation">
+          <form className="confirm-modal menu-form" role="dialog" aria-modal="true" aria-labelledby="pin-title" onSubmit={doPin}>
+            <h2 id="pin-title">Ganti PIN {pinFor === 'reset' ? 'reset transaksi' : 'staf'}</h2>
+            <label>PIN baru (4-6 digit)<input autoFocus type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pinValue} onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))} placeholder="1234" required /></label>
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={closePin} disabled={pinBusy}>Batal</button>
+              <button type="submit" className="primary-button" disabled={pinBusy || pinValue.length < 4}>{pinBusy ? 'Menyimpan…' : 'Ganti PIN'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </AppShell>
   )
 }

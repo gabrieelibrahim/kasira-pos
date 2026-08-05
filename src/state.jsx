@@ -95,19 +95,41 @@ const normalizeOrder = (o) => ({
   items: o.lines && o.lines.length ? o.lines.reduce((n, l) => n + (Number(l[1].match(/\d+/)?.[0]) || 1), 0) : 0,
   age: 'baru saja',
   created_at: o.created_at,
+  staff_id: o.staff_id || null,
   // Human-friendly sequential order number (Order #1, #2, …). Assigned by
   // `withOrderNums` from the created_at order — never persisted, so the order
   // a customer sees is stable and matches the receipt they were handed.
   num: 0,
 })
 
+// Calendar day key in the viewer's local timezone — used to reset order
+// numbers each day. (Uses local getters, NOT the UTC string slice, so an
+// order at 01:00 WIB still belongs to the local "today".)
+const dayKey = (iso) => {
+  const d = iso ? new Date(iso) : new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+// Start of the local day as an ISO timestamp (for today-only queries).
+const startOfDay = () => {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 // Assign `num` (1, 2, 3, …) to an array of orders sorted by creation time,
-// oldest first — the number an order keeps across the app. Ordering is stable
-// so numbers never shift once assigned.
+// oldest first. Numbers restart at 1 on each new local calendar day, so today
+// starts at #1 even if the app has run for weeks. Ordering is stable within a
+// day so numbers never shift once assigned.
 export const withOrderNums = (list) => list
   .slice()
   .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-  .map((o, i) => ({ ...o, num: i + 1 }))
+  .map((o, i, arr) => ({
+    ...o,
+    num: i > 0 && dayKey(arr[i - 1].created_at) !== dayKey(o.created_at) ? 1 : i > 0 ? arr[i - 1].num + 1 : 1,
+  }))
 
 export function StoreProvider({ children }) {
   const [orders, setOrders] = useState([])
@@ -123,8 +145,15 @@ export function StoreProvider({ children }) {
     const channel = supabase
       .channel('kasira-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
-        if (mounted) setOrders((prev) => [normalizeOrder(payload.new), ...prev.filter((o) => o.id !== payload.new.id)])
-      })      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
+        if (!mounted) return
+        const incoming = normalizeOrder(payload.new)
+        setOrders((prev) => {
+          const next = [incoming, ...prev.filter((o) => o.id !== incoming.id)]
+          const today = next.filter((o) => dayKey(o.created_at) === dayKey(incoming.created_at))
+          return next.map((o) => ({ ...o, num: today.filter((x) => x.created_at <= o.created_at).length }))
+        })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         if (mounted) setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'menu_items' }, (payload) => {
@@ -150,12 +179,14 @@ export function StoreProvider({ children }) {
       }
 
       const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
-        oId ? supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(30) : { data: [] },
+        // All orders since the start of the local day so #num is correct and
+        // resets each day; yesterday's orders are out of the live board.
+        oId ? supabase.from('orders').select('*').gte('created_at', startOfDay().toISOString()).order('created_at', { ascending: false }) : { data: [] },
         supabase.from('menu_items').select('*').order('name'),
         supabase.from('table_spots').select('*').order('number'),
       ])
       if (mounted) {
-        setOrders((o || []).map(normalizeOrder))
+        setOrders(withOrderNums((o || []).map(normalizeOrder)))
         setMenu(m || [])
         setTables(t || [])
         setReady(true)
@@ -247,6 +278,7 @@ export function StoreProvider({ children }) {
           total: order.total,
           lines: order.lines,
           station: order.station === 'bar' ? 'bar' : 'dapur',
+          staff_id: order.staff_id ?? null,
         }).select('id').single()
         if (error) throw error
         return data.id
@@ -270,6 +302,32 @@ export function StoreProvider({ children }) {
         const { data, error } = await supabase.rpc('verify_reset_pin', { p_pin: String(pin ?? '').trim() })
         if (error) throw error
         return Boolean(data)
+      },
+      // Staff management (admin): all writes go through SECURITY DEFINER RPCs
+      // so PINs are hashed server-side and never sent raw to the client.
+      staffList: async () => {
+        if (!outletId) return []
+        const { data, error } = await supabase.rpc('list_staff', { p_outlet_id: outletId })
+        if (error) throw error
+        return data || []
+      },
+      saveStaff: async (payload) => {
+        await supabase.rpc('insert_staff', {
+          p_outlet_id: outletId,
+          p_name: payload.name,
+          p_username: payload.username,
+          p_pin: payload.pin,
+          p_role: payload.role,
+        })
+      },
+      toggleStaff: async (id, active) => {
+        await supabase.rpc('toggle_staff', { p_staff_id: id, p_active: Boolean(active) })
+      },
+      changeStaffPin: async (id, pin) => {
+        await supabase.rpc('set_staff_password', { p_staff_id: id, p_new_pin: String(pin) })
+      },
+      changeResetPin: async (pin) => {
+        await supabase.rpc('set_outlet_reset_pin', { p_new_pin: String(pin) })
       },
       // Reset seluruh aplikasi dari nol: hapus permanen semua order + kosongkan semua meja.
       resetAll: async () => {

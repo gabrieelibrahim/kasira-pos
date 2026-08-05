@@ -63,6 +63,9 @@ function Cashier() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      // Stand down while a modal is open — Enter/R belong to the modal, not
+      // the queue (prevents re-opening the cash modal right after confirming).
+      if (adjusting || rejecting) return
       if (!selected || event.target.matches('input, textarea, select')) return
       if (event.key === 'Enter' && selected.paymentTone === 'paid') updateOrder(accept)
       if (event.key === 'Enter' && selected.paymentTone === 'cash') openAdjust()
@@ -165,7 +168,6 @@ function Cashier() {
   const confirmCash = async () => {
     const order = selected
     if (!order) return
-    setAdjusting(false)
     const disc = gross - net
     await settleCash(order.id, {
       total: net,
@@ -173,6 +175,9 @@ function Cashier() {
       service_rate: rate > 0 ? rate : null,
       cash_received: paidAmount ? Number(paidAmount) : null,
     })
+    // Only now clear the modal — the optimistic sync has flipped paymentTone
+    // to 'paid', so the next Enter accepts the order instead of re-opening it.
+    setAdjusting(false)
     const chg = Math.max(0, (Number(paidAmount) || 0) - due)
     setChange(chg)
     flash(chg > 0 ? `Kembalian ${money(chg)} untuk ${order.table}.` : `Pembayaran tunai ${order.table} dicatat — uang pas.`)

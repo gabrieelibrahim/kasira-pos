@@ -232,6 +232,11 @@ export function StoreProvider({ children }) {
         if (adjustment.service_rate != null) patch.service_rate = Number(adjustment.service_rate) || null
         if (adjustment.cash_received != null) patch.cash_received = Number(adjustment.cash_received) || null
         await update(id, patch)
+        // Optimistic sync — derived fields too, so the very next keyboard action
+        // (Enter → accept) sees this order as paid without waiting for realtime.
+        setOrders((prev) => prev.map((o) => (o.id === id
+          ? { ...o, ...patch, paymentTone: 'paid', payment: o.payment_method === 'cash' ? 'Tunai diterima' : 'QRIS terkonfirmasi' }
+          : o)))
       },
       reject: (id) => update(id, { status: STATUS.REJECTED }),
       advance: (id) => setOrders((prev) => prev.map((o) => {

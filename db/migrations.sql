@@ -83,3 +83,17 @@ begin
   return coalesce(v_ok, false);
 end;
 $$;
+
+-- 7. Order adjustments: discount (Rp) + service (% of net subtotal) + kitchen
+--    station + cash received. All additive/idempotent — safe to re-run.
+--    - discount:      potongan dalam rupiah (0 = tidak ada)
+--    - service_rate:  % service dari total NET (setelah diskon); null = 0%
+--    - station:       'dapur' | 'bar' — routing KDS (Minuman → bar)
+--    - cash_received: nominal tunai yang diterima kasir (untuk kembalian struk)
+alter table public.orders add column if not exists discount      numeric not null default 0;
+alter table public.orders add column if not exists service_rate  numeric;
+alter table public.orders add column if not exists station       text    not null default 'dapur';
+alter table public.orders add column if not exists cash_received numeric;
+
+-- Backfill: order lama tidak punya diskon → total dianggap net tanpa potongan.
+update public.orders set discount = 0 where discount is null;

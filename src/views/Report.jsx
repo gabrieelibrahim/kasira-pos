@@ -4,9 +4,10 @@
 // date-filterable history table.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { money, useStore } from '../state.jsx'
+import { money, useAuth, useStore } from '../state.jsx'
 import { Ic } from '../icons.jsx'
 import AppShell from '../AppShell.jsx'
+import Receipt from '../Receipt.jsx'
 
 const PERIODS = [
   { id: 'today', label: 'Hari ini' },
@@ -35,11 +36,13 @@ const parseLine = ([name, price, note]) => {
 }
 
 function Report() {
-  const { reportOrders } = useStore()
+  const { reportOrders, outlet } = useStore()
+  const { user } = useAuth()
   const [period, setPeriod] = useState('today')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [reprintId, setReprintId] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -50,6 +53,49 @@ function Report() {
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [reportOrders])
+
+  const tax = Number(outlet?.tax_rate ?? 11)
+
+  // Re-print a past order's receipt: mount an off-screen <Receipt> for that
+  // order, then open the browser print dialog (scoped to the receipt). Reset
+  // after printing so the scoped <style> unmounts and QR printing is unaffected.
+  const reprintOrder = rows.find((o) => o.id === reprintId) || null
+  useEffect(() => {
+    if (!reprintId) return
+    const t = window.setTimeout(() => {
+      window.print()
+      setReprintId('')
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [reprintId])
+
+  // CSV export of the current period — hand-rolled (no lib). Semicolon
+  // separator + UTF-8 BOM so it opens correctly in Indonesian Excel.
+  const exportCsv = () => {
+    const esc = (v) => String(v ?? '').replace(/"/g, '""')
+    const head = ['Waktu', 'Order', 'Meja', 'Pelanggan', 'Metode', 'Status Bayar', 'Status', 'Subtotal', 'Diskon', 'Service %', 'Service Rp', 'PPN', 'Total'].join(';')
+    const rowsCsv = filtered.map((o) => {
+      const discount = Number(o.discount || 0)
+      const rate = o.service_rate ?? 0
+      const base = Number(o.total || 0)
+      const service = Math.round(base * rate / 100)
+      const ppn = Math.round((base + service) * tax / 100)
+      return [
+        new Date(o.created_at).toLocaleString('id-ID'),
+        o.id, o.table, o.customer,
+        o.payment_method, o.payment_status, o.status,
+        base + discount, discount, rate + '%', service, ppn, base + service + ppn,
+      ].map(esc).join(';')
+    }).join('\r\n')
+    const blob = new Blob([`﻿${head}\r\n${rowsCsv}\r\n`], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `kasira-laporan-${period}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(a.href)
+  }
 
   const startOf = (key) => {
     const now = new Date()
@@ -114,6 +160,7 @@ function Report() {
                 <button type="button" role="tab" aria-selected={period === p.id} key={p.id} className={period === p.id ? 'selected' : ''} onClick={() => setPeriod(p.id)}>{p.label}</button>
               ))}
             </div>
+            <button type="button" className="report-export" onClick={exportCsv}><Ic.download width="16" height="16" /> Unduh CSV</button>
           </section>
 
           {err && <div className="report-error">{err}</div>}
@@ -173,19 +220,26 @@ function Report() {
               <section className="menu-panel report-panel">
                 <div className="panel-heading report-panel-head"><div><h2>Riwayat order</h2><p>{filtered.length} order · diurutkan terlama dulu</p></div></div>
                 <div className="report-table">
-                  <div className="report-table-head"><span>Waktu</span><span>Meja</span><span>Metode</span><span>Status</span><span className="right">Total</span></div>
-                  {filtered.map((o) => (
-                    <div className="report-row" key={o.id}>
-                      <span className="report-cell time"><b>{fmtDate(o.created_at)}</b><small>{fmtTime(o.created_at)}</small></span>
-                      <span className="report-cell">{o.table}</span>
-                      <span className="report-cell"><span className={`payment-tag ${o.paymentTone}`}><i />{o.payment}</span></span>
-                      <span className="report-cell"><span className={`status-chip ${o.status.toLowerCase().replace(/\s+/g, '-')}`}>{o.status}</span></span>
-                      <span className="report-cell right"><strong>{money(o.total)}</strong></span>
-                    </div>
-                  ))}
+                  <div className="report-table-head"><span>Waktu</span><span>Meja</span><span>Metode</span><span>Status</span><span className="right">Total</span><span>Aksi</span></div>
+                  {filtered.map((o) => {
+                    const disc = Number(o.discount || 0)
+                    const sr = o.service_rate ?? 0
+                    return (
+                      <div className="report-row" key={o.id}>
+                        <span className="report-cell time"><b>{fmtDate(o.created_at)}</b><small>{fmtTime(o.created_at)}</small></span>
+                        <span className="report-cell">{o.table}</span>
+                        <span className="report-cell"><span className={`payment-tag ${o.paymentTone}`}><i />{o.payment}</span></span>
+                        <span className="report-cell"><span className={`status-chip ${o.status.toLowerCase().replace(/\s+/g, '-')}`}>{o.status}</span></span>
+                        <span className="report-cell right"><strong>{money(o.total)}</strong>{(disc > 0 || sr > 0) && <span className="report-sub">{disc > 0 && `−${money(disc)}`}{disc > 0 && sr > 0 && ' · '}{sr > 0 && `service ${sr}%`}</span>}</span>
+                        <span className="report-cell"><button type="button" className="report-row-print" aria-label={`Cetak ulang struk ${o.id}`} title="Cetak ulang struk" onClick={() => setReprintId(o.id)}><Ic.print width="15" height="15" /></button></span>
+                      </div>
+                    )
+                  })}
                   {filtered.length === 0 && <div className="report-empty">Tidak ada order pada periode ini.</div>}
                 </div>
               </section>
+
+              {reprintOrder && <Receipt order={reprintOrder} outlet={outlet} staff={user} />}
             </>
           )}
     </AppShell>

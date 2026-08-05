@@ -93,13 +93,16 @@ function Customer() {
   const submit = async () => {
     if (cart.length === 0 || submitting) return
     setSubmitting(true)
+    // Route the whole order to the kitchen station: all drinks → Bar, anything
+    // else → Dapur. Mixed carts go to Dapur so food and drinks leave together.
+    const station = cart.every((l) => (l.category || l.cat || 'Makanan') === 'Minuman') ? 'bar' : 'dapur'
     try {
       const id = await submitCustomerOrder({
         table: tableName,
         items: cart.reduce((n, l) => n + l.qty, 0),
         total: subtotal,
         paymentTone: payment === 'qris' ? 'paid' : 'cash',
-        station: 'dapur',
+        station,
         customer: 'Pelanggan meja',
         note: note.trim(),
         lines: cart.map((l) => [`${l.qty}× ${l.name}`, money(l.price * l.qty), '']),

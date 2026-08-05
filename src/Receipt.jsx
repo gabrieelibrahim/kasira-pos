@@ -23,8 +23,16 @@ const fmt = (n) => money(n).replace(/^Rp\s*/, '') // "Rp 25.000" -> "25.000"
 
 export default function Receipt({ order, outlet, staff }) {
   const tax = Number(outlet?.tax_rate ?? 11)
-  const subtotal = Math.round(Number(order.total || 0) / (1 + tax / 100))
-  const taxAmt = Number(order.total || 0) - subtotal
+  // Canonical price derivation — shared with the cashier modal and CSV export:
+  //   total (net, pre-tax) is stored after discount; discount, service, and PPN
+  //   are all re-derived from it on read.
+  const discount = Number(order.discount || 0)
+  const serviceRate = order.service_rate ?? 0
+  const serviceBase = Number(order.total || 0)
+  const subtotal = serviceBase + discount
+  const serviceAmt = Math.round(serviceBase * serviceRate / 100)
+  const ppn = Math.round((serviceBase + serviceAmt) * tax / 100)
+  const grandTotal = serviceBase + serviceAmt + ppn
   const when = new Date(order.created_at).toLocaleString('id-ID', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
@@ -46,10 +54,16 @@ export default function Receipt({ order, outlet, staff }) {
     lines,
     '-'.repeat(W),
     row('Subtotal', fmt(subtotal)),
-    row('PPN ' + tax + '%', fmt(taxAmt)),
-    row('TOTAL', fmt(order.total)),
+    ...(discount > 0 ? [row('Diskon', '-' + fmt(discount))] : []),
+    ...(serviceRate > 0 ? [row('Service ' + serviceRate + '%', fmt(serviceAmt))] : []),
+    row('PPN ' + tax + '%', fmt(ppn)),
+    row('TOTAL', fmt(grandTotal)),
     '-'.repeat(W),
     row(order.payment_method === 'cash' ? 'TUNAI' : 'QRIS', order.payment),
+    ...(order.cash_received != null && order.payment_method === 'cash' ? [
+      row('Diterima', fmt(order.cash_received)),
+      row('Kembalian', fmt(Math.max(0, order.cash_received - grandTotal))),
+    ] : []),
     '='.repeat(W),
     'Terima kasih!',
   ].filter(Boolean).join('\n')

@@ -88,7 +88,10 @@ const normalizeOrder = (o) => ({
   payment: o.payment_status === 'paid' ? (o.payment_method === 'cash' ? 'Tunai diterima' : 'QRIS terkonfirmasi') : (o.payment_method === 'cash' ? 'Menunggu tunai' : 'Menunggu QRIS'),
   paymentTone: o.payment_status === 'paid' ? 'paid' : 'cash',
   lines: Array.isArray(o.lines) ? o.lines : [],
-  station: 'dapur',
+  station: o.station === 'bar' ? 'bar' : 'dapur',
+  discount: Number(o.discount || 0),
+  service_rate: o.service_rate == null ? 0 : Number(o.service_rate),
+  cash_received: o.cash_received == null ? null : Number(o.cash_received),
   items: o.lines && o.lines.length ? o.lines.reduce((n, l) => n + (Number(l[1].match(/\d+/)?.[0]) || 1), 0) : 0,
   age: 'baru saja',
   created_at: o.created_at,
@@ -176,7 +179,18 @@ export function StoreProvider({ children }) {
         setOutlet(data)
       },
       accept: (id) => update(id, { status: STATUS.SENT }),
-      markCashPaid: (id) => update(id, { payment_status: 'paid', status: STATUS.CASHIER }),
+      // Settle a cash order: mark paid + advance to cashier confirmation, and
+      // optionally apply a discount (Rp), service charge (% of net total), and
+      // record the cash received (for change on the receipt). total here is the
+      // net pre-tax total (subtotal − discount).
+      settleCash: async (id, adjustment = {}) => {
+        const patch = { payment_status: 'paid', status: STATUS.CASHIER }
+        if (adjustment.total != null) patch.total = Math.max(0, Math.round(Number(adjustment.total) || 0))
+        if (adjustment.discount != null) patch.discount = Math.max(0, Math.round(Number(adjustment.discount) || 0))
+        if (adjustment.service_rate != null) patch.service_rate = Number(adjustment.service_rate) || null
+        if (adjustment.cash_received != null) patch.cash_received = Number(adjustment.cash_received) || null
+        await update(id, patch)
+      },
       reject: (id) => update(id, { status: STATUS.REJECTED }),
       advance: (id) => setOrders((prev) => prev.map((o) => {
         if (o.id !== id) return o
@@ -221,6 +235,7 @@ export function StoreProvider({ children }) {
           payment_status: order.paymentTone === 'cash' ? 'pending' : 'paid',
           total: order.total,
           lines: order.lines,
+          station: order.station === 'bar' ? 'bar' : 'dapur',
         }).select('id').single()
         if (error) throw error
         return data.id

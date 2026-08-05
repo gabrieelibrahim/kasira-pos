@@ -222,7 +222,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .top-item > strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .report-empty { padding: 26px 12px; color: var(--muted); text-align: center; font-size: 13px; }
 .report-table { width: 100%; }
-.report-table-head, .report-row { display: grid; grid-template-columns: 1.3fr .7fr 1.4fr 1.4fr .8fr; gap: 12px; align-items: center; padding: 0 18px; }
+.report-table-head, .report-row { display: grid; grid-template-columns: 1.3fr .7fr 1.4fr 1.4fr .8fr .45fr; gap: 12px; align-items: center; padding: 0 18px; }
 .report-table-head { padding-top: 11px; padding-bottom: 11px; color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .report-row { min-height: 56px; border-bottom: 1px solid var(--border); }
 .report-row:last-child { border-bottom: 0; }
@@ -312,6 +312,25 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   .report-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 12px 18px; }
   .report-cell.right { grid-column: 1 / -1; text-align: left; }
 }
+
+/* Cash-adjust modal (Terima tunai — discount + service + cash received) */
+.cash-adjust { width: min(100%, 420px); }
+.cash-adjust p { margin: 8px 0 18px; }
+.cash-adjust input { padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; outline: 0; color: var(--ink); background: var(--surface-1); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cash-adjust input:focus { border-color: var(--primary); }
+.cash-preview { display: grid; gap: 6px; margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: var(--surface-2); font-size: 12px; }
+.cash-preview .line-item { align-items: baseline; }
+.cash-preview .line-item div b, .cash-preview .line-item strong { font-weight: 600; }
+.cash-preview .grand { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 8px; }
+.cash-preview .grand b, .cash-preview .grand strong { font-weight: 700; font-size: 13px; }
+
+/* Report: CSV export button + per-row reprint + total breakdown */
+.report-export { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-2); color: var(--ink-subtle); font-size: 12px; font-weight: 600; transition: border-color .15s, color .15s; }
+.report-export:hover { border-color: var(--primary); color: var(--primary); }
+.report-export svg { color: currentColor; }
+.report-row-print { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-1); color: var(--muted); transition: border-color .15s, color .15s; }
+.report-row-print:hover { border-color: var(--primary); color: var(--primary); }
+.report-cell .report-sub { display: block; color: var(--faint); font-size: 10px; font-weight: 500; }
 
 @media (max-width: 520px) {
   .menu-row { grid-template-columns: 1fr; }

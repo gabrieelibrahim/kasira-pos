@@ -2,10 +2,10 @@
 // Renders around a main-content slot so QR, portal-meja (kasir mode) and any
 // other workspace view keep the same navigation chrome.
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Ic } from './icons.jsx'
 import { isActionable, useAuth, useStore } from './state.jsx'
-import { NAV, NAV_EXTRA, useShortcuts } from './useShortcuts.js'
+import { isModalOpen, NAV, NAV_EXTRA, useShortcuts } from './useShortcuts.js'
 
 // Two-letter initials from a staff member's name ("Raka Adi" -> "RA").
 const initialsOf = (name) => (name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -68,6 +68,20 @@ function Topbar({ breadcrumb }) {
 export default function AppShell({ active, breadcrumb, badge, children }) {
   // Global 1-8 sidebar shortcuts shared with KDS (defined in useShortcuts).
   useShortcuts()
+  const { logout } = useAuth()
+
+  // Esc → logout (unless typing in a field or a modal/confirm is open).
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape' || event.metaKey || event.ctrlKey || event.altKey) return
+      const target = event.target
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+      if (typing || isModalOpen()) return
+      logout()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [logout])
 
   return (
     <div className="app-shell">

@@ -22,6 +22,13 @@ export const NAV_EXTRA = [
 
 export const SHORTCUTS = [...NAV, ...NAV_EXTRA]
 
+// True while any modal/confirm overlay is open (Cashier reject, Menu form/
+// delete, Settings reset). Escape is handled by those flows, so shortcuts
+// (incl. the Esc→logout in AppShell) stand down while one is up.
+export function isModalOpen() {
+  return Boolean(document.querySelector('.modal-backdrop, .reset-confirm'))
+}
+
 // Wire the global 1-8 navigation listener. Safe to call once per mounted view.
 export function useShortcuts() {
   useEffect(() => {
@@ -29,6 +36,7 @@ export function useShortcuts() {
       const target = event.target
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return
+      if (event.key === 'Escape' && isModalOpen()) return
       const item = SHORTCUTS.find((x) => String(x.key) === event.key)
       if (item) window.location.hash = '#/' + item.route
     }

@@ -82,7 +82,7 @@ function Report() {
       const ppn = Math.round((base + service) * tax / 100)
       return [
         new Date(o.created_at).toLocaleString('id-ID'),
-        o.id, o.table, o.customer,
+        o.num, o.table, o.customer,
         o.payment_method, o.payment_status, o.status,
         base + discount, discount, rate + '%', service, ppn, base + service + ppn,
       ].map(esc).join(';')
@@ -231,7 +231,7 @@ function Report() {
                         <span className="report-cell"><span className={`payment-tag ${o.paymentTone}`}><i />{o.payment}</span></span>
                         <span className="report-cell"><span className={`status-chip ${o.status.toLowerCase().replace(/\s+/g, '-')}`}>{o.status}</span></span>
                         <span className="report-cell right"><strong>{money(o.total)}</strong>{(disc > 0 || sr > 0) && <span className="report-sub">{disc > 0 && `−${money(disc)}`}{disc > 0 && sr > 0 && ' · '}{sr > 0 && `service ${sr}%`}</span>}</span>
-                        <span className="report-cell"><button type="button" className="report-row-print" aria-label={`Cetak ulang struk ${o.id}`} title="Cetak ulang struk" onClick={() => setReprintId(o.id)}><Ic.print width="15" height="15" /></button></span>
+                        <span className="report-cell"><button type="button" className="report-row-print" aria-label={`Cetak ulang struk #${o.num}`} title={`Cetak ulang struk #${o.num}`} onClick={() => setReprintId(o.id)}><Ic.print width="15" height="15" /></button></span>
                       </div>
                     )
                   })}

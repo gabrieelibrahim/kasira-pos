@@ -126,7 +126,7 @@ function Customer() {
             <span className="live-dot" />
             <div>
               <h1>Pesanan kamu</h1>
-              <p>{tableName} · {myOrder ? myOrder.id : 'Memuat…'}</p>
+              <p>{tableName} · {myOrder ? '#' + myOrder.num : 'Memuat…'}</p>
             </div>
           </div>
           {myOrder && (

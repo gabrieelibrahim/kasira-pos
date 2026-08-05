@@ -95,7 +95,19 @@ const normalizeOrder = (o) => ({
   items: o.lines && o.lines.length ? o.lines.reduce((n, l) => n + (Number(l[1].match(/\d+/)?.[0]) || 1), 0) : 0,
   age: 'baru saja',
   created_at: o.created_at,
+  // Human-friendly sequential order number (Order #1, #2, …). Assigned by
+  // `withOrderNums` from the created_at order — never persisted, so the order
+  // a customer sees is stable and matches the receipt they were handed.
+  num: 0,
 })
+
+// Assign `num` (1, 2, 3, …) to an array of orders sorted by creation time,
+// oldest first — the number an order keeps across the app. Ordering is stable
+// so numbers never shift once assigned.
+export const withOrderNums = (list) => list
+  .slice()
+  .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  .map((o, i) => ({ ...o, num: i + 1 }))
 
 export function StoreProvider({ children }) {
   const [orders, setOrders] = useState([])
@@ -112,8 +124,7 @@ export function StoreProvider({ children }) {
       .channel('kasira-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
         if (mounted) setOrders((prev) => [normalizeOrder(payload.new), ...prev.filter((o) => o.id !== payload.new.id)])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
+      })      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         if (mounted) setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'menu_items' }, (payload) => {
@@ -243,13 +254,13 @@ export function StoreProvider({ children }) {
       reportOrders: async () => {
         const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: true })
         if (error) throw error
-        return (data || []).map(normalizeOrder)
+        return withOrderNums((data || []).map(normalizeOrder))
       },
       todayOrders: async () => {
         const start = new Date(); start.setHours(0, 0, 0, 0)
         const { data, error } = await supabase.from('orders').select('*').gte('created_at', start.toISOString()).order('created_at', { ascending: false })
         if (error) throw error
-        return (data || []).map(normalizeOrder)
+        return withOrderNums((data || []).map(normalizeOrder))
       },
       clearTable: async (spotId) => {
         await supabase.from('table_spots').update({ status: 'empty' }).eq('id', spotId)

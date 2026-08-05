@@ -46,7 +46,7 @@ export default function Receipt({ order, outlet, staff }) {
     `${outlet?.address || ''}`,
     `${outlet?.phone || ''}`,
     '='.repeat(W),
-    row('Order', order.id),
+    row('Order', '#' + (order.num || 0)),
     row('Meja', order.table),
     row('Tanggal', when),
     row('Kasir', staff?.name || ''),

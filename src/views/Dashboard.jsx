@@ -67,7 +67,7 @@ function Dashboard() {
             <div className="report-table-head"><span>Waktu</span><span>Meja</span><span>Metode</span><span>Status</span><span className="right">Total</span></div>
             {today.slice(0, 10).map((o) => (
               <div className="report-row" key={o.id}>
-                <span className="report-cell time"><b>{fmtTime(o.created_at)}</b><small>{o.id}</small></span>
+                <span className="report-cell time"><b>{fmtTime(o.created_at)}</b><small>#{o.num}</small></span>
                 <span className="report-cell">{o.table}</span>
                 <span className="report-cell"><span className={`payment-tag ${o.paymentTone}`}><i />{o.payment}</span></span>
                 <span className="report-cell"><span className={`status-chip ${o.status.toLowerCase().replace(/\s+/g, '-')}`}>{o.status}</span></span>

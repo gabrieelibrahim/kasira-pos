@@ -76,7 +76,7 @@ function Tables() {
               {selected.orders.map((o) => (
                 <div className="report-row" key={o.id}>
                   <span className="report-cell time"><b>{fmtTime(o.created_at)}</b><small>{o.items} item</small></span>
-                  <span className="report-cell">{o.id}</span>
+                  <span className="report-cell">#{o.num}</span>
                   <span className="report-cell"><span className={`payment-tag ${o.paymentTone}`}><i />{o.payment}</span></span>
                   <span className="report-cell"><span className={`status-chip ${o.status.toLowerCase().replace(/\s+/g, '-')}`}>{o.status}</span></span>
                   <span className="report-cell right"><strong>{money(o.total)}</strong></span>

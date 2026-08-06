@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:proxy": "vite build --mode proxy",
     "preview": "vite preview"
   },
   "dependencies": {

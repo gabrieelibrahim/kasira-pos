@@ -328,6 +328,16 @@ export function StoreProvider({ children }) {
       toggleStaff: async (id, active) => {
         await supabase.rpc('toggle_staff', { p_staff_id: id, p_active: Boolean(active) })
       },
+      updateStaff: async (id, payload) => {
+        await supabase.rpc('update_staff', {
+          p_id: id,
+          p_name: payload.name,
+          p_username: payload.username,
+        })
+      },
+      deleteStaff: async (id) => {
+        await supabase.rpc('delete_staff', { p_id: id })
+      },
       changeStaffPin: async (id, pin) => {
         await supabase.rpc('set_staff_password', { p_staff_id: id, p_new_pin: String(pin) })
       },

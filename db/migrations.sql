@@ -180,3 +180,31 @@ begin
    where reset_pin_hash is not null or reset_pin is not null;
 end;
 $$;
+
+-- 9. Staff management: rename + delete (rename).
+--    Same rules as before — single squash merge keeps the history clean.
+
+create or replace function public.update_staff(
+  p_id uuid, p_name text, p_username text
+)
+returns void
+language plpgsql
+as $$
+begin
+  update public.staff
+     set name     = nullif(btrim(p_name), ''),
+         username = nullif(btrim(p_username), '')
+   where id = p_id;
+end;
+$$;
+
+create or replace function public.delete_staff(
+  p_id uuid
+)
+returns void
+language plpgsql
+as $$
+begin
+  delete from public.staff where id = p_id;
+end;
+$$;

@@ -10,7 +10,7 @@ import AppShell from '../AppShell.jsx'
 import { Ic } from '../icons.jsx'
 
 function Settings() {
-  const { outlet, updateOutlet, verifyResetPin, resetAll, resetDay, staffList, saveStaff, toggleStaff, changeStaffPin, changeResetPin } = useStore()
+  const { outlet, updateOutlet, verifyResetPin, resetAll, resetDay, staffList, saveStaff, toggleStaff, updateStaff, deleteStaff, changeStaffPin, changeResetPin } = useStore()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [form, setForm] = useState({ name: '', address: '', phone: '', open_time: '', close_time: '', tax_rate: 11 })
@@ -27,6 +27,13 @@ function Settings() {
   const [pinFor, setPinFor] = useState(null) // staff row id being PIN-changed, or 'reset' for the reset PIN
   const [pinValue, setPinValue] = useState('')
   const [pinBusy, setPinBusy] = useState(false)
+
+  // Edit (rename) + delete state
+  const [editFor, setEditFor] = useState(null)   // staff row being renamed
+  const [editForm, setEditForm] = useState({ name: '', username: '' })
+  const [editBusy, setEditBusy] = useState(false)
+  const [delFor, setDelFor] = useState(null)      // staff row pending delete
+  const [delBusy, setDelBusy] = useState(false)
 
   // Reset section state
   const [pin, setPin] = useState('')
@@ -124,6 +131,31 @@ function Settings() {
     catch { staffFlash('Gagal mengubah status staf.') }
   }
 
+  const openEdit = (s) => { setEditFor(s.id); setEditForm({ name: s.name, username: s.username }) }
+  const closeEdit = () => { setEditFor(null); setEditForm({ name: '', username: '' }) }
+
+  const doEdit = async (e) => {
+    e.preventDefault()
+    if (!editForm.name.trim() || !editForm.username.trim()) return
+    setEditBusy(true)
+    try {
+      await updateStaff(editFor, { name: editForm.name.trim(), username: editForm.username.trim() })
+      closeEdit()
+      staffFlash('Data staf diperbarui.')
+      setStaff(await staffList())
+    } catch { staffFlash('Gagal memperbarui (username mungkin sudah dipakai).') } finally { setEditBusy(false) }
+  }
+
+  const doDelete = async () => {
+    if (delBusy) return
+    setDelBusy(true)
+    try {
+      await deleteStaff(delFor)
+      staffFlash('Akun staf dihapus.')
+      setStaff(await staffList())
+    } catch { staffFlash('Gagal menghapus akun.') } finally { setDelBusy(false); setDelFor(null) }
+  }
+
   const openPin = (target) => { setPinFor(target); setPinValue(''); }
   const closePin = () => { setPinFor(null); setPinValue('') }
 
@@ -190,6 +222,12 @@ function Settings() {
                 <button type="button" className="row-action" onClick={() => openPin(s.id)}>Ganti PIN</button>
               )}
               {s.role === 'admin' && <span className="staff-you">Akun kamu</span>}
+              {s.role !== 'admin' && s.id !== user?.id && (
+                <>
+                  <button type="button" className="row-action" onClick={() => openEdit(s)}><Ic.edit width="14" height="14" /> Edit</button>
+                  <button type="button" className="row-action row-action-danger" onClick={() => setDelFor(s.id)}><Ic.trash width="14" height="14" /> Hapus</button>
+                </>
+              )}
               {s.role !== 'admin' && (
                 <label className="switch-wrap" title={s.active ? 'Aktif' : 'Nonaktif'}>
                   <input type="checkbox" checked={!!s.active} onChange={() => doToggle(s)} aria-label={`Aktifkan ${s.name}`} />
@@ -281,6 +319,33 @@ function Settings() {
               <button type="submit" className="primary-button" disabled={pinBusy || pinValue.length < 4}>{pinBusy ? 'Menyimpan…' : 'Ganti PIN'}</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {editFor && (
+        <div className="modal-backdrop" role="presentation">
+          <form className="confirm-modal menu-form" role="dialog" aria-modal="true" aria-labelledby="edit-staff-title" onSubmit={doEdit}>
+            <h2 id="edit-staff-title">Edit akun staf</h2>
+            <label>Nama<input autoFocus value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Contoh: Raka" required /></label>
+            <label>Username<input value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value.toLowerCase() })} placeholder="Contoh: raka" required /></label>
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={closeEdit} disabled={editBusy}>Batal</button>
+              <button type="submit" className="primary-button" disabled={editBusy || !editForm.name.trim() || !editForm.username.trim()}>{editBusy ? 'Menyimpan…' : 'Simpan'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {delFor && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-staff-title">
+            <h2 id="delete-staff-title">Hapus akun staf?</h2>
+            <p className="confirm-text">Akun ini akan dihapus permanen dan tidak bisa login lagi. Tindakan ini tidak bisa dibatalkan.</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={() => setDelFor(null)} disabled={delBusy}>Batal</button>
+              <button type="button" className="reset-submit" onClick={doDelete} disabled={delBusy}>{delBusy ? 'Menghapus…' : 'Hapus akun'}</button>
+            </div>
+          </div>
         </div>
       )}
     </AppShell>

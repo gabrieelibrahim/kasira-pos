@@ -365,8 +365,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .staff-main b { display: block; color: var(--ink); font-size: 13px; font-weight: 600; }
 .staff-main span { color: var(--muted); font-size: 11px; }
 .staff-you { color: var(--faint); font-size: 11px; font-weight: 600; }
-.staff-row .row-action { color: var(--primary); background: none; border: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; }
+.staff-row .row-action { color: var(--primary); background: none; border: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
 .staff-row .row-action:hover { background: var(--surface-2); }
+.staff-row .row-action-danger { color: var(--danger); }
+.staff-row .row-action-danger:hover { background: var(--danger-soft); }
 
 @media (max-width: 520px) {
   .menu-row { grid-template-columns: 1fr; }

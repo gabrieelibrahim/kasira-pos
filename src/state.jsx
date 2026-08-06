@@ -273,11 +273,22 @@ export function StoreProvider({ children }) {
       deleteItem: async (id) => {
         await supabase.from('menu_items').delete().eq('id', id)
       },
+      // Refetch the table grid after an add/delete. The boot fetch + realtime
+      // INSERT event normally keep `tables` in sync, but if realtime misses the
+      // event (or the connection stalled), the new spot lands in Postgres yet
+      // never appears in the QR grid. A short, authoritative refetch after the
+      // write closes that gap, so add/remove always reflect immediately.
+      async refreshTables() {
+        const { data } = await supabase.from('table_spots').select('*').order('number')
+        if (data) setTables((data || []).sort((a, b) => (a.number ?? 0) - (b.number ?? 0)))
+      },
       addTable: async (number) => {
         await supabase.rpc('add_table', { p_outlet_id: outletId, p_number: number || null })
+        await this.refreshTables()
       },
       deleteTable: async (id) => {
         await supabase.rpc('delete_table', { p_id: id })
+        await this.refreshTables()
       },
       submitCustomerOrder: async (order) => {
         const tableKey = normNum(order.table?.replace(/^meja\s*/i, ''))

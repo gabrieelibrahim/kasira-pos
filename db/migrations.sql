@@ -208,3 +208,54 @@ begin
   delete from public.staff where id = p_id;
 end;
 $$;
+
+-- 10. Table (QR meja) management: add + delete.
+--     table_spots has no insert/delete RLS policy (wide-open select/update only),
+--     so both writes go through SECURITY DEFINER RPCs.
+--     add_table: insert a new spot, using the next free number if none given.
+--                Raises if a spot with that number already exists.
+--     delete_table: removes a spot. FK orders.table_spot_id is ON DELETE SET
+--                NULL, so existing order history survives the table's removal.
+
+create or replace function public.add_table(
+  p_outlet_id uuid,
+  p_number integer default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_number integer;
+begin
+  select coalesce(p_number, coalesce(max(number), 0) + 1)
+    into v_number
+    from public.table_spots
+   where outlet_id = p_outlet_id;
+
+  if v_number <= 0 then
+    raise exception 'nomor meja tidak valid';
+  end if;
+
+  if exists (select 1 from public.table_spots
+              where outlet_id = p_outlet_id and number = v_number) then
+    raise exception 'nomor meja % sudah dipakai', v_number;
+  end if;
+
+  insert into public.table_spots (outlet_id, number, label, status)
+  values (p_outlet_id, v_number, 'Meja ' || lpad(v_number::text, 2, '0'), 'empty');
+end;
+$$;
+
+create or replace function public.delete_table(
+  p_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.table_spots where id = p_id;
+end;
+$$;

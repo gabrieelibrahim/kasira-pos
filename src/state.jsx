@@ -165,8 +165,14 @@ export function StoreProvider({ children }) {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'menu_items' }, (payload) => {
         if (mounted) setMenu((prev) => prev.filter((m) => m.id !== payload.old.id))
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'table_spots' }, (payload) => {
+        if (mounted) setTables((prev) => [...prev, payload.new].sort((a, b) => a.number - b.number))
+      })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'table_spots' }, (payload) => {
         if (mounted) setTables((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'table_spots' }, (payload) => {
+        if (mounted) setTables((prev) => prev.filter((t) => t.id !== payload.old.id))
       })
       .subscribe()
 
@@ -266,6 +272,12 @@ export function StoreProvider({ children }) {
       },
       deleteItem: async (id) => {
         await supabase.from('menu_items').delete().eq('id', id)
+      },
+      addTable: async (number) => {
+        await supabase.rpc('add_table', { p_outlet_id: outletId, p_number: number || null })
+      },
+      deleteTable: async (id) => {
+        await supabase.rpc('delete_table', { p_id: id })
       },
       submitCustomerOrder: async (order) => {
         const tableKey = normNum(order.table?.replace(/^meja\s*/i, ''))

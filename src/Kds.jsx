@@ -3,7 +3,7 @@
 // automatically, and production status advances are visible everywhere.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { STATUS, isInProduction, money, useStore } from './state.jsx'
+import { STATUS, isInProduction, money, useAuth, useStore } from './state.jsx'
 import { Ic } from './icons.jsx'
 import { useShortcuts } from './useShortcuts.js'
 
@@ -69,8 +69,10 @@ function playChime() {
 
 function Kds() {
   const { orders, advance } = useStore()
+  const { user } = useAuth()
   const [station, setStation] = useState('semua')
-  useShortcuts()
+  useShortcuts(user?.role)
+  const isDapur = user?.role === 'dapur'
 
   const boardOrders = orders.filter(isInProduction)
   const visible = useMemo(() => boardOrders.filter((o) => station === 'semua' || o.station === station), [boardOrders, station])
@@ -91,7 +93,7 @@ function Kds() {
     <main className="kds">
       <header className="kds-header">
         <div className="kds-top-left">
-          <button type="button" className="back-button" aria-label="Kembali ke dashboard" onClick={() => window.location.hash = '#/'}><Ic.back width="20" height="20" /></button>
+          {!isDapur && <button type="button" className="back-button" aria-label="Kembali ke dashboard" onClick={() => window.location.hash = '#/'}><Ic.back width="20" height="20" /></button>}
           <div className="kds-title">
             <h1>Layar dapur</h1>
             <p>Order yang sudah diterima kasir dan masuk ke produksi.</p>

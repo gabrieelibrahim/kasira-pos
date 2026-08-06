@@ -16,10 +16,15 @@ create table if not exists public.staff (
   name       text not null,
   username   text not null unique,
   pin_hash   text not null,          -- bcrypt: crypt(pin, gen_salt('bf'))
-  role       text not null default 'kasir' check (role in ('admin', 'kasir')),
+  role       text not null default 'kasir' check (role in ('admin', 'kasir', 'pelayan', 'dapur', 'pemilik')),
   active     boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+-- Widen the role CHECK (additive; keeps existing 'admin'/'kasir' rows valid).
+alter table public.staff drop constraint if exists staff_role_check;
+alter table public.staff add constraint staff_role_check
+  check (role in ('admin', 'kasir', 'pelayan', 'dapur', 'pemilik'));
 
 alter table public.staff enable row level security;
 
@@ -39,6 +44,11 @@ select id, 'Admin', 'kasir', crypt('1234', gen_salt('bf', 10)), 'admin', true
 from public.outlets
 order by created_at limit 1
 on conflict (username) do nothing;
+
+-- 3b. Widen the staff role CHECK to the full fixed role set. Safe to re-run.
+alter table public.staff drop constraint if exists staff_role_check;
+alter table public.staff add constraint staff_role_check
+  check (role in ('admin', 'kasir', 'pelayan', 'dapur', 'pemilik'));
 
 -- 4. Migrate outlets.reset_pin (currently plaintext '1234') to a hash.
 --    reset_pin is left in place for one release as a fallback, then dropped.
@@ -121,7 +131,7 @@ end;
 $$;
 
 create or replace function public.insert_staff(
-  p_outlet_id uuid, p_name text, p_username text, p_pin text, p_role text
+  p_outlet_id uuid, p_name text, p_username text, p_pin text, p_role text default 'kasir'
 )
 returns void
 language plpgsql
@@ -130,7 +140,8 @@ set search_path = public, extensions
 as $$
 begin
   insert into public.staff (outlet_id, name, username, pin_hash, role, active)
-  values (p_outlet_id, p_name, lower(p_username), crypt(p_pin, gen_salt('bf', 10)), p_role, true)
+  values (p_outlet_id, p_name, lower(p_username), crypt(p_pin, gen_salt('bf', 10)),
+          coalesce(nullif(p_role, ''), 'kasir'), true)
   on conflict (username) do nothing;
 end;
 $$;

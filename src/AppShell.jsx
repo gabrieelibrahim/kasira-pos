@@ -5,7 +5,8 @@
 import React, { useEffect } from 'react'
 import { Ic } from './icons.jsx'
 import { isActionable, useAuth, useStore } from './state.jsx'
-import { isModalOpen, NAV, NAV_EXTRA, useShortcuts } from './useShortcuts.js'
+import { ROLE_LABELS } from './permissions.js'
+import { isModalOpen, useShortcuts, visibleNav } from './useShortcuts.js'
 
 // Two-letter initials from a staff member's name ("Raka Adi" -> "RA").
 const initialsOf = (name) => (name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -22,12 +23,14 @@ function Sidebar({ active, badge }) {
   const pending = typeof badge === 'number' ? badge : orders.filter(isActionable).length
   const go = (route) => { window.location.hash = '#/' + route }
   const initials = initialsOf(user?.name)
+  const nav = visibleNav(user?.role)          // role-filtered entries
+  const settings = nav.find((x) => x.route === 'pengaturan')
   return (
     <aside className="sidebar">
       <div className="brand-lockup"><div className="brand-mark">K</div><div><strong>{outletName}</strong><span>CONTROL ROOM</span></div></div>
       <nav aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
-        {NAV.map((item) => (
+        {nav.filter((x) => x.route !== 'pengaturan').map((item) => (
           <button type="button" key={item.label} aria-current={active === item.label ? 'page' : undefined} className={`nav-item ${active === item.label ? 'active' : ''}`} onClick={() => go(item.route)}>
             <Icon name={item.icon} />
             <span>{item.label}</span>
@@ -37,10 +40,12 @@ function Sidebar({ active, badge }) {
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <button type="button" aria-current={active === 'Pengaturan' ? 'page' : undefined} className={`nav-item ${active === 'Pengaturan' ? 'active' : ''}`} onClick={() => go('pengaturan')}><Icon name="settings" /><span>Pengaturan</span><kbd className="nav-key">8</kbd></button>
+        {settings && (
+          <button type="button" aria-current={active === 'Pengaturan' ? 'page' : undefined} className={`nav-item ${active === 'Pengaturan' ? 'active' : ''}`} onClick={() => go('pengaturan')}><Icon name="settings" /><span>Pengaturan</span><kbd className="nav-key">8</kbd></button>
+        )}
         <div className="user-row">
           <div className="avatar">{initials}</div>
-          <span><b>{user?.name || 'Staf'}</b><small>{user?.role === 'admin' ? 'Admin' : 'Kasir'}</small></span>
+          <span><b>{user?.name || 'Staf'}</b><small>{ROLE_LABELS[user?.role] || user?.role || 'Staf'}</small></span>
           <button type="button" className="logout-button" aria-label="Keluar" title="Keluar" onClick={logout}><Ic.power width="16" height="16" /></button>
         </div>
       </div>
@@ -67,7 +72,8 @@ function Topbar({ breadcrumb }) {
 
 export default function AppShell({ active, breadcrumb, badge, children }) {
   // Global 1-8 sidebar shortcuts shared with KDS (defined in useShortcuts).
-  useShortcuts()
+  const { user } = useAuth()
+  useShortcuts(user?.role)
   const { logout } = useAuth()
 
   // Esc → logout (unless typing in a field or a modal/confirm is open).

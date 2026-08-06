@@ -4,6 +4,7 @@
 // KDS screen, so 1-8 navigation works everywhere.
 
 import { useEffect } from 'react'
+import { canView } from './permissions.js'
 
 export const NAV = [
   { key: 1, label: 'Ringkasan', icon: 'dashboard', route: '' },
@@ -22,6 +23,10 @@ export const NAV_EXTRA = [
 
 export const SHORTCUTS = [...NAV, ...NAV_EXTRA]
 
+// A session role's allowed entries, in sidebar order. Dapur only sees the KDS
+// (and Ringkasan), a Pemilik never sees Order, Pelayan never sees uang/menu.
+export const visibleNav = (role) => SHORTCUTS.filter((item) => canView(role, item.route))
+
 // True while any modal/confirm overlay is open (Cashier reject, Menu form/
 // delete, Settings reset). Escape is handled by those flows, so shortcuts
 // (incl. the Esc→logout in AppShell) stand down while one is up.
@@ -30,17 +35,20 @@ export function isModalOpen() {
 }
 
 // Wire the global 1-8 navigation listener. Safe to call once per mounted view.
-export function useShortcuts() {
+// Only routes the role can open are wired, so a role blocked from a view can't
+// shortcut-into it (Dapur pressing 7 → Laporan is a no-op).
+export function useShortcuts(role) {
   useEffect(() => {
+    const allowed = visibleNav(role)
     const onKeyDown = (event) => {
       const target = event.target
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return
       if (event.key === 'Escape' && isModalOpen()) return
-      const item = SHORTCUTS.find((x) => String(x.key) === event.key)
+      const item = allowed.find((x) => String(x.key) === event.key)
       if (item) window.location.hash = '#/' + item.route
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [role])
 }

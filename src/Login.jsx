@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react'
 import { useAuth, useStore } from './state.jsx'
+import { ROLE_HOME } from './permissions.js'
 import { supabase } from './supabase.js'
 
 function Login() {
@@ -20,7 +21,10 @@ function Login() {
     setBusy(true)
     setErr('')
     try {
-      await login(username, pin)
+      const session = await login(username, pin)
+      // Land the session on the role's home view — Dapur goes straight to the
+      // KDS, Pelayan to Order masuk, Pemilik to Ringkasan, etc.
+      window.location.hash = '#/' + (ROLE_HOME[session?.role] || '')
     } catch {
       // Distinguish "no staff accounts at all" (seed not run) from a bad PIN.
       try {

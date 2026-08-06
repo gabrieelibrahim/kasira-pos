@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useAuth, useStore } from '../state.jsx'
+import { ROLE_LABELS, ROLE_ORDER } from '../permissions.js'
 import AppShell from '../AppShell.jsx'
 import { Ic } from '../icons.jsx'
 
@@ -21,7 +22,7 @@ function Settings() {
   const [staffErr, setStaffErr] = useState('')
   const [staffNotice, setStaffNotice] = useState('')
   const [adding, setAdding] = useState(false)
-  const [addForm, setAddForm] = useState({ name: '', username: '', pin: '' })
+  const [addForm, setAddForm] = useState({ name: '', username: '', pin: '', role: 'kasir' })
   const [addBusy, setAddBusy] = useState(false)
   const [pinFor, setPinFor] = useState(null) // staff row id being PIN-changed, or 'reset' for the reset PIN
   const [pinValue, setPinValue] = useState('')
@@ -110,10 +111,10 @@ function Settings() {
     if (!addForm.name.trim() || !addForm.username.trim() || addForm.pin.length < 4) return
     setAddBusy(true)
     try {
-      await saveStaff({ name: addForm.name.trim(), username: addForm.username.trim(), pin: addForm.pin, role: 'kasir' })
+      await saveStaff({ name: addForm.name.trim(), username: addForm.username.trim(), pin: addForm.pin, role: addForm.role })
       setAdding(false)
-      setAddForm({ name: '', username: '', pin: '' })
-      staffFlash('Kasir ditambahkan.')
+      setAddForm({ name: '', username: '', pin: '', role: 'kasir' })
+      staffFlash(`${ROLE_LABELS[addForm.role] || addForm.role} ditambahkan.`)
       setStaff(await staffList())
     } catch { staffFlash('Gagal menambah kasir (username mungkin sudah dipakai).') } finally { setAddBusy(false) }
   }
@@ -184,7 +185,7 @@ function Settings() {
           {staff.map((s) => (
             <div className="staff-row" key={s.id}>
               <div className="staff-avatar">{s.name.slice(0, 1).toUpperCase()}</div>
-              <div className="staff-main"><b>{s.name}</b><span>@{s.username} · {s.role === 'admin' ? 'Admin' : 'Kasir'}</span></div>
+              <div className="staff-main"><b>{s.name}</b><span>@{s.username} · {ROLE_LABELS[s.role] || s.role}</span></div>
               {s.role !== 'admin' && (
                 <button type="button" className="row-action" onClick={() => openPin(s.id)}>Ganti PIN</button>
               )}
@@ -261,6 +262,7 @@ function Settings() {
             <label>Nama<input autoFocus value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Contoh: Raka" required /></label>
             <label>Username<input value={addForm.username} onChange={(e) => setAddForm({ ...addForm, username: e.target.value.toLowerCase() })} placeholder="Contoh: raka" required /></label>
             <label>PIN (4-6 digit)<input type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={addForm.pin} onChange={(e) => setAddForm({ ...addForm, pin: e.target.value.replace(/\D/g, '') })} placeholder="1234" required /></label>
+            <label>Role<select value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}>{ROLE_ORDER.filter((r) => r !== 'admin').map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></label>
             <div className="modal-actions">
               <button type="button" className="secondary-button" onClick={() => { setAdding(false); setAddForm({ name: '', username: '', pin: '' }) }}>Batal</button>
               <button type="submit" className="primary-button" disabled={addBusy || !addForm.name.trim() || !addForm.username.trim() || addForm.pin.length < 4}>{addBusy ? 'Menyimpan…' : 'Tambah kasir'}</button>

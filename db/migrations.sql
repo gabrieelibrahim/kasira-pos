@@ -59,11 +59,14 @@ update public.outlets
 
 -- 5. Login RPC. SECURITY DEFINER so the anon key can call it and verify
 --    against the bcrypt hash without ever reading raw PINs.
+--    NOTE: calls crypt(), which lives in the `extensions` schema, so the
+--    search_path MUST include extensions or the RPC dies at runtime with
+--    "function crypt(text, text) does not exist" → app shows "PIN salah".
 create or replace function public.login_staff(p_username text, p_pin text)
 returns table (id uuid, name text, username text, role text, outlet_id uuid)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query
@@ -76,11 +79,12 @@ end;
 $$;
 
 -- 6. Reset-PIN verification RPC. Works during and after the migration.
+--    (Also calls crypt() → search_path must include extensions.)
 create or replace function public.verify_reset_pin(p_pin text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare v_ok boolean;
 begin

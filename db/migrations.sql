@@ -282,11 +282,13 @@ alter table public.outlets add column if not exists subscription_tier      text 
 alter table public.outlets add column if not exists subscription_expires_at timestamptz;
 alter table public.outlets add column if not exists is_suspended          boolean not null default false;
 
--- 11c. Bootstrap the platform super admin (PIN 'admin123'). Its outlet_id is
---     just a placeholder (the first outlet) — the dashboard ignores it, and
---     login_staff skips the suspension check for super_admin.
+-- 11c. Bootstrap the platform super admin. PIN is the 6-digit number the app
+--     accepts (all PIN inputs strip non-digits and cap at 6 chars — see
+--     Login.jsx / AdminDashboard PinGate). Its outlet_id is a placeholder
+--     (the first outlet) — the dashboard ignores it, and login_staff skips the
+--     suspension check for super_admin.
 insert into public.staff (outlet_id, name, username, pin_hash, role, active)
-select id, 'Super Admin', 'superadmin', crypt('admin123', gen_salt('bf', 10)), 'super_admin', true
+select id, 'Super Admin', 'superadmin', crypt('123456', gen_salt('bf', 10)), 'super_admin', true
 from public.outlets order by created_at limit 1
 on conflict (username) do nothing;
 

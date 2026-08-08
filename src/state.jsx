@@ -77,6 +77,25 @@ export function useAuth() {
   return ctx
 }
 
+// Normalize one order.lines entry to the canonical tuple shape
+// [nameWithQty, price, note] that the app renders and prints everywhere
+// (Receipt, Cashier line-items, KDS, Customer track, Report parseLine).
+// Tolerates the shapes that have existed across migrations:
+//   tuple        → ["2× Nasi Goreng", "Rp 50.000", "no sambal"]
+//   object       → { qty: 2, name: "Nasi Goreng", quote/price, note? }
+//   string       → legacy blob; kept as-is so nothing downstream crashes
+const normalizeLine = (l) => {
+  if (Array.isArray(l)) return l
+  if (l && typeof l === 'object') {
+    const qty = Number(l.qty) > 0 ? Number(l.qty) : 1
+    const name = String(l.name ?? '')
+    const n = `${qty > 1 ? `${qty}× ` : ''}${name}`
+    const v = Number(l.price ?? l.unit_price ?? l.quote ?? 0)
+    return [n, v ? `Rp ${v.toLocaleString('id-ID')}` : '', String(l.note ?? l.notes ?? '')]
+  }
+  return [String(l ?? ''), '', '']
+}
+
 const normalizeOrder = (o) => ({
   id: o.id,
   table: o.table_label || 'Meja –',
@@ -87,12 +106,19 @@ const normalizeOrder = (o) => ({
   payment_method: o.payment_method,
   payment: o.payment_status === 'paid' ? (o.payment_method === 'cash' ? 'Tunai diterima' : 'QRIS terkonfirmasi') : (o.payment_method === 'cash' ? 'Menunggu tunai' : 'Menunggu QRIS'),
   paymentTone: o.payment_status === 'paid' ? 'paid' : 'cash',
-  lines: Array.isArray(o.lines) ? o.lines : [],
+  lines: Array.isArray(o.lines) ? o.lines.map(normalizeLine) : [],
   station: o.station === 'bar' ? 'bar' : 'dapur',
   discount: Number(o.discount || 0),
   service_rate: o.service_rate == null ? 0 : Number(o.service_rate),
   cash_received: o.cash_received == null ? null : Number(o.cash_received),
-  items: o.lines && o.lines.length ? o.lines.reduce((n, l) => n + (Number(l[1].match(/\d+/)?.[0]) || 1), 0) : 0,
+  items: (Array.isArray(o.lines) ? o.lines : []).reduce((n, l) => {
+    if (Array.isArray(l)) {
+      const m = String(l[0] ?? '').match(/^(\d+)\s*[×x]\s*(.+)$/)
+      return n + (m ? Number(m[1]) : 1)
+    }
+    if (l && typeof l === 'object') return n + (Number(l.qty) > 0 ? Number(l.qty) : 1)
+    return n + 1 // legacy string line
+  }, 0),
   age: 'baru saja',
   created_at: o.created_at,
   staff_id: o.staff_id || null,

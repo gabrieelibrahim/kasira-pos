@@ -1,11 +1,10 @@
-// Login — the only "gate" in the app. Staff sign in with username + PIN;
-// verification happens server-side via the login_staff RPC (bcrypt). The
+// Login — the only "gate" in the app. Staff sign in with username + PIN via
+// Supabase Auth (email = <username>@kasira.local, password = PIN). The
 // customer portal (#/meja?meja=N) is served separately and never lands here.
 
 import React, { useState } from 'react'
 import { useAuth, useStore } from './state.jsx'
 import { ROLE_HOME } from './permissions.js'
-import { supabase } from './supabase.js'
 
 function Login() {
   const { login } = useAuth()
@@ -25,15 +24,11 @@ function Login() {
       // Land the session on the role's home view — Dapur goes straight to the
       // KDS, Pelayan to Order masuk, Pemilik to Ringkasan, etc.
       window.location.hash = '#/' + (ROLE_HOME[session?.role] || '')
-    } catch {
-      // Distinguish "no staff accounts at all" (seed not run) from a bad PIN.
-      try {
-        const { count } = await supabase.from('staff').select('id', { count: 'exact', head: true })
-        if (count === 0) setErr('Belum ada akun staf — jalankan seed admin (username kasir, PIN 1234).')
-        else setErr('Username atau PIN salah.')
-      } catch {
-        setErr('Gagal menghubungi server. Coba lagi.')
-      }
+    } catch (e) {
+      // Supabase Auth returns a single error for unknown user / wrong PIN.
+      const code = e?.code || e?.status || (e?.message || '').toLowerCase()
+      if (/invalid_credentials|invalid login/i.test(code)) setErr('Username atau PIN salah.')
+      else setErr('Gagal masuk. Coba lagi.')
       setPin('')
     } finally {
       setBusy(false)

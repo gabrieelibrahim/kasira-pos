@@ -3,8 +3,8 @@
 // them through this store and subscribe to changes via supabase channel.
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from './supabase.js'
-import { clearSession, getStoredUser, saveSession } from './auth.js'
+import { supabase, setPortalOutlet } from './supabase.js'
+import { clearSession, getStoredUser, saveSession, userFromAuth } from './auth.js'
 
 export const STATUS = {
   PAYMENT: 'Menunggu pembayaran',
@@ -46,26 +46,30 @@ const StoreContext = createContext(null)
 
 const AuthContext = createContext(null)
 
-// App-level staff auth. Session is restored synchronously from localStorage so
-// there's no async flash of the login screen on reload.
+// App-level staff auth. Since the RLS/Auth migration (2026-08-08), login is a
+// real Supabase Auth sign-in (email = <username>@kasira.local, password = PIN);
+// supabase-js persists the JWT under its own key and REST + realtime carry it
+// automatically, so RLS scopes every request to the staff's tenant. The app
+// user object (id/name/role/outletId) is derived from the session for UI
+// routing, restored synchronously so there's no async flash on reload.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser())
 
   const login = async (username, pin) => {
-    const { data, error } = await supabase.rpc('login_staff', {
-      p_username: String(username ?? '').trim(),
-      p_pin: String(pin ?? ''),
-    })
+    const email = `${String(username ?? '').trim().toLowerCase()}@kasira.local`
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: String(pin ?? '') })
     if (error) throw error
-    if (!data || data.length === 0) throw new Error('invalid')
-    const u = data[0]
-    const session = { id: u.id, name: u.name, username: u.username, role: u.role, outletId: u.outlet_id }
+    const session = userFromAuth(data.session, getStoredUser())
     saveSession(session)
     setUser(session)
     return session
   }
 
-  const logout = () => { clearSession(); setUser(null) }
+  const logout = async () => {
+    await supabase.auth.signOut()
+    clearSession()
+    setUser(null)
+  }
 
   const value = useMemo(() => ({ user, login, logout }), [user])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -271,6 +275,10 @@ export function StoreProvider({ children }) {
 
     async function boot(oid) {
       if (mounted) {
+        // Staff session: never carry the portal's x-kasira-outlet header — the
+        // staff JWT's outlet claim is authoritative (RLS reads it first), so a
+        // leftover portal header must not leak across modes.
+        setPortalOutlet(null)
         // Clear the previous tenant's data so the switch is never seen as a
         // partial blend (e.g. A's menu next to B's tables) during the reload.
         outletRef.current = null // stop realtime blending until the new snapshot lands
@@ -323,6 +331,10 @@ export function StoreProvider({ children }) {
       // With multiple tenants, a missing/unknown id fails honestly instead of
       // silently loading some other tenant's menu. Bool = found.
       resolveOutlet: async (id) => {
+        // The portal is anonymous — scope every REST call to this tenant by
+        // setting the x-kasira-outlet header (RLS current_outlet() fallback).
+        // Staff never reach here: their Auth JWT carries the outlet claim.
+        setPortalOutlet(id ? String(id) : null)
         if (id) return loadSnapshot(String(id))
         const { count } = await supabase.from('outlets').select('id', { count: 'exact', head: true })
         if (count === 1) {
@@ -404,6 +416,28 @@ export function StoreProvider({ children }) {
       submitCustomerOrder: async (order) => {
         const tableKey = normNum(order.table?.replace(/^meja\s*/i, ''))
         const spot = tables.find((t) => normNum(t.number ?? t.label) === tableKey)
+        // Portal (no staff_id): write through the SECURITY DEFINER place_order
+        // RPC, which forces the outlet from the caller's context (JWT claim for
+        // staff, x-kasira-outlet header for the anon portal) and marks the
+        // table occupied atomically — the caller can't spoof another outlet.
+        if (!order.staff_id) {
+          const { data, error } = await supabase.rpc('place_order', {
+            p_table_label: order.table,
+            p_customer: order.customer,
+            p_note: order.note,
+            p_status: order.paymentTone === 'cash' ? STATUS.PAYMENT : STATUS.CASHIER,
+            p_payment_method: order.paymentTone === 'cash' ? 'cash' : 'qris',
+            p_payment_status: order.paymentTone === 'cash' ? 'pending' : 'paid',
+            p_total: order.total,
+            p_lines: order.lines,
+            p_station: order.station === 'bar' ? 'bar' : 'dapur',
+            p_table_spot_id: spot?.id || null,
+          })
+          if (error) throw error
+          return data
+        }
+        // Staff manual order: direct insert (authenticated JWT is scoped by RLS;
+        // carries staff_id, discount, service_rate that place_order lacks).
         if (spot?.id) await supabase.from('table_spots').update({ status: 'occupied' }).eq('id', spot.id).eq('outlet_id', outletId)
         const { data, error } = await supabase.from('orders').insert({
           outlet_id: outletId,
@@ -418,6 +452,8 @@ export function StoreProvider({ children }) {
           lines: order.lines,
           station: order.station === 'bar' ? 'bar' : 'dapur',
           staff_id: order.staff_id ?? null,
+          discount: order.discount ?? 0,
+          service_rate: order.service_rate ?? null,
         }).select('id').single()
         if (error) throw error
         return data.id

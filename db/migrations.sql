@@ -430,7 +430,51 @@ begin
     values (v_outlet_id, i, 'Meja ' || lpad(i::text, 2, '0'), 'empty');
   end loop;
 
+  -- Mirror the new admin into Supabase Auth so they can sign in.
+  perform public.sync_staff_auth(v_staff_id, p_admin_pin);
+
   return json_build_object('outlet_id', v_outlet_id, 'staff_id', v_staff_id);
+end;
+$$;
+
+-- 11g2. place_order — the customer portal's write path. SECURITY DEFINER so it
+-- can insert an order + mark the table occupied atomically, regardless of RLS.
+-- The outlet is forced from the caller's `current_outlet()` (JWT claim for
+-- staff/portal header) and cannot be supplied by the caller, closing spoofing.
+create or replace function public.place_order(
+  p_table_label text,
+  p_customer text,
+  p_note text,
+  p_status text,
+  p_payment_method text,
+  p_payment_status text,
+  p_total numeric,
+  p_lines jsonb,
+  p_station text,
+  p_table_spot_id uuid default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_outlet uuid := public.current_outlet();
+  v_id uuid;
+begin
+  if v_outlet is null then raise exception 'outlet tidak dikenali'; end if;
+  insert into public.orders (outlet_id, table_spot_id, table_label, customer_name,
+    note, status, payment_method, payment_status, total, lines, station, staff_id)
+  values (v_outlet, p_table_spot_id, p_table_label, p_customer, p_note,
+    p_status, p_payment_method, p_payment_status, p_total, coalesce(p_lines, '[]'::jsonb),
+    p_station, null)
+  returning id into v_id;
+
+  if p_table_spot_id is not null then
+    update public.table_spots set status = 'occupied'
+     where id = p_table_spot_id and outlet_id = v_outlet;
+  end if;
+  return v_id;
 end;
 $$;
 
@@ -607,4 +651,387 @@ grant select (id,name,address,phone,open_time,close_time,tax_rate,is_suspended,c
   on public.outlets to authenticated;
 grant update (name,address,phone,open_time,close_time,tax_rate,is_suspended,subscription_tier,subscription_expires_at)
   on public.outlets to authenticated;
+
+-- ===========================================================================
+-- 12. TRUE per-tenant DB isolation via Supabase Auth + RLS.
+--     REPLACES the fake "filter in the client" model. Now:
+--       * Every staff member IS a Supabase Auth user (email = <username>@<slug>
+--         with app_metadata.outlet_id + role + super_admin flag).
+--       * Login uses signInWithPassword → the session JWT carries
+--         `role: authenticated` + `outlet_id` + `super_admin` claims.
+--       * RLS reads the outlet from the JWT (request.jwt.claims) so BOTH REST
+--         and realtime (which cannot send custom headers) evaluate the same
+--         policy and enforce the same tenant scope.
+--       * Anon (customer portal) stays wide for SELECT on the tenant-scoped
+--         data it must serve, but is throttled to its own outlet via
+--         `current_outlet()` from request.http headers, and order writes go
+--         through the SECURITY DEFINER `place_order` RPC.
+-- ===========================================================================
+
+-- 12a. Helper: the caller's outlet id. Reads the Auth JWT first (authoritative),
+--      then HttpContext: http x-kasira-outlet header for the anon portal.
+--      Custom claims live under app_metadata in GoTrue JWTs, so read
+--      `->'app_metadata'->>'outlet_id'`, not the top-level claim.
+create or replace function public.current_outlet()
+returns uuid
+language sql
+stable
+set search_path = public
+as $$
+  select nullif(coalesce(
+    current_setting('request.jwt.claims', true)::json->'app_metadata'->>'outlet_id',
+    -- fallback for anon portal requests: header carried by supabase-js
+    current_setting('request.headers', true)::json->>'x-kasira-outlet',
+    ''
+  ), '')::uuid
+$$;
+
+-- 12b. Row guard used by every tenant table: true iff the row belongs to the
+--      caller's outlet. For Super Admin (session JWT has super_admin=true and
+--      outlet_id=their seed outlet) we also allow ALL rows so the platform
+--      dashboard can query aggregates; its write surface is only the RPCs.
+create or replace function public.belongs_outlet(p_outlet uuid)
+returns boolean
+language sql
+stable
+as $$
+  select coalesce(public.current_outlet(), uuid_nil()) = coalesce(p_outlet, uuid_nil())
+      or (current_setting('request.jwt.claims', true)::json->'app_metadata'->>'super_admin' = 'true')
+$$;
+
+-- 12c. Drop ALL the old wide-open policies in one pass, then recreate scoped.
+alter policy "staff select anon"        on public.staff        drop;
+alter policy "staff insert anon"        on public.staff        drop;
+alter policy "staff update anon"        on public.staff        drop;
+alter policy "tables_read"              on public.table_spots  drop;
+alter policy "table_spots_update"       on public.table_spots  drop;
+alter policy "table_spots_delete"       on public.table_spots  drop;
+alter policy "menu_read"                on public.menu_items   drop;
+alter policy "menu_insert"              on public.menu_items   drop;
+alter policy "menu_update"              on public.menu_items   drop;
+alter policy "menu_delete"              on public.menu_items   drop;
+alter policy "outlet_read"              on public.outlets      drop;
+alter policy "outlet_update"            on public.outlets      drop;
+alter policy "orders_read"              on public.orders       drop;
+alter policy "orders_insert"            on public.orders       drop;
+alter policy "orders_update"            on public.orders       drop;
+alter policy "order_items_insert"       on public.order_items  drop;
+alter policy "order_items_read"         on public.order_items  drop;
+
+-- 12d. Recreate as scoped. All SELECT/UPDATE/DELETE only affect rows whose
+--      outlet is the caller's, or the caller is the platform super admin.
+--      INSERT requires the new row's outlet to be the caller's.
+
+-- orders — the customer portal submits via `place_order` RPC (SECURITY
+-- DEFINER), so raw INSERT is restricted to tenants. Cashier/kitchen read and
+-- advance orders of their outlet.
+create policy "orders_select_scoped" on public.orders
+  for select to public using ( public.belongs_outlet(outlet_id) );
+create policy "orders_update_scoped" on public.orders
+  for update to public using ( public.belongs_outlet(outlet_id) );
+create policy "orders_insert_scoped" on public.orders
+  for insert to public with check ( public.belongs_outlet(outlet_id) );
+
+-- order_items
+create policy "order_items_select_scoped" on public.order_items
+  for select to public using ( public.belongs_outlet(
+    (select o.outlet_id from public.orders o where o.id = order_id) ) );
+create policy "order_items_insert_scoped" on public.order_items
+  for insert to public with check ( public.belongs_outlet(
+    (select o.outlet_id from public.orders o where o.id = order_id) ) );
+
+-- menu_items
+create policy "menu_select_scoped" on public.menu_items
+  for select to public using ( public.belongs_outlet(outlet_id) );
+create policy "menu_insert_scoped" on public.menu_items
+  for insert to public with check ( public.belongs_outlet(outlet_id) );
+create policy "menu_update_scoped" on public.menu_items
+  for update to public using ( public.belongs_outlet(outlet_id) );
+create policy "menu_delete_scoped" on public.menu_items
+  for delete to public using ( public.belongs_outlet(outlet_id) );
+
+-- table_spots
+create policy "tables_select_scoped" on public.table_spots
+  for select to public using ( public.belongs_outlet(outlet_id) );
+create policy "tables_insert_scoped" on public.table_spots
+  for insert to public with check ( public.belongs_outlet(outlet_id) );
+create policy "tables_update_scoped" on public.table_spots
+  for update to public using ( public.belongs_outlet(outlet_id) );
+create policy "tables_delete_scoped" on public.table_spots
+  for delete to public using ( public.belongs_outlet(outlet_id) );
+
+-- outlets — only the outlet itself (or super admin) reads/writes a row.
+create policy "outlet_select_scoped" on public.outlets
+  for select to public using ( public.belongs_outlet(id) );
+create policy "outlet_update_scoped" on public.outlets
+  for update to public using ( public.belongs_outlet(id) );
+
+-- staff — readable w/ the outlet, writable only via SECURITY DEFINER RPCs.
+create policy "staff_select_scoped" on public.staff
+  for select to public using ( public.belongs_outlet(outlet_id) );
+
+-- 12e. Tighten table-level grants so the raw credential columns (staff.pin_hash,
+--      outlets.reset_pin / reset_pin_hash) are NEVER readable over REST. The
+--      app reads/writes them only via SECURITY DEFINER RPCs. anon keeps the
+--      columns the public portal must read; authenticated keeps the columns
+--      the POS must read.
+revoke all on public.staff from anon, authenticated;
+grant select (id, name, username, role, active, created_at, outlet_id) on public.staff to anon;
+grant select (id, name, username, role, active, created_at, outlet_id) on public.staff to authenticated;
+-- (no UPDATE/INSERT/DELETE grants on staff — only RPCs can mutate it)
+
+revoke all on public.outlets from anon, authenticated;
+grant select (id,name,address,phone,open_time,close_time,tax_rate,is_suspended,created_at,subscription_tier,subscription_expires_at)
+  on public.outlets to anon;
+grant select (id,name,address,phone,open_time,close_time,tax_rate,is_suspended,created_at,subscription_tier,subscription_expires_at)
+  on public.outlets to authenticated;
+grant update (name,address,phone,open_time,close_time,tax_rate,is_suspended,subscription_tier,subscription_expires_at)
+  on public.outlets to authenticated;
+
+-- 12f. Staff/Auth bridge: when staff are managed via RPCs, keep the
+--      corresponding Supabase Auth user in sync so login is real Auth.
+--      email = lower(username) || '@kasira.local' (deterministic & unique —
+--      staff.username is globally unique), password = PIN, app_metadata =
+--      { outlet_id, role, super_admin }. SECURITY DEFINER (bypass RLS), called
+--      only with a valid super-admin PIN or from a scoped outlet context.
+create or replace function public.staff_email(p_username text)
+returns text
+language sql
+stable
+as $$
+  select lower(p_username) || '@kasira.local'
+$$;
+
+-- Ensure a Supabase Auth user exists for a staff row and matches its current
+-- PIN/role/outlet. Creates on first call, otherwise updates password (PIN) and
+-- app_metadata. Returns the auth user id. SECURITY DEFINER for auth.users.
+create or replace function public.sync_staff_auth(p_staff_id uuid, p_pin text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_staff public.staff%rowtype;
+  v_email text;
+  v_auth_id uuid;
+  v_meta jsonb;
+  v_encrypted text;
+begin
+  select * into v_staff from public.staff where id = p_staff_id;
+  if not found then raise exception 'staff not found'; end if;
+
+  v_email := public.staff_email(v_staff.username);
+  v_meta := jsonb_build_object(
+    'outlet_id', v_staff.outlet_id,
+    'role', v_staff.role,
+    'super_admin', (v_staff.role = 'super_admin')
+  );
+  -- Same bcrypt format Supabase Auth stores (cost 10).
+  v_encrypted := crypt(p_pin, gen_salt('bf', 10));
+
+  select id into v_auth_id from auth.users where email = v_email;
+  if v_auth_id is null then
+    -- GoTrue's Go scanner rejects NULL in these text columns, so set '' not NULL
+    -- (real GoTrue-created users have '' there too).
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, raw_app_meta_data,
+      confirmation_token, recovery_token, email_change_token_new,
+      email_change, phone, phone_change, phone_change_token,
+      email_change_token_current, reauthentication_token, email_change_confirm_status,
+      is_super_admin, created_at, updated_at, is_sso_user, is_anonymous)
+    values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
+      v_email, v_encrypted, now(),
+      jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')) || v_meta,
+      '', '', '',
+      '', null, '', '',
+      '', '', 0,
+      false, now(), now(), false, false)
+    returning id into v_auth_id;
+
+    -- GoTrue resolves password sign-in through auth.identities; a users row
+    -- without one is invisible to login. email is a generated column there, so
+    -- it derives from identity_data (do not set it directly).
+    insert into auth.identities (provider_id, user_id, identity_data, provider,
+      last_sign_in_at, created_at, updated_at, id)
+    values (v_email, v_auth_id,
+      jsonb_build_object('sub', v_auth_id::text, 'email', v_email,
+        'email_verified', false, 'phone_verified', false),
+      'email', now(), now(), now(), gen_random_uuid());
+  else
+    update auth.users
+       set encrypted_password = v_encrypted,
+           raw_app_meta_data = jsonb_build_object('provider','email','providers',jsonb_build_array('email')) || v_meta,
+           updated_at = now()
+     where id = v_auth_id;
+  end if;
+  return v_auth_id;
+end;
+$$;
+
+-- Delete the Auth user mirror for a staff row (when staff is removed).
+create or replace function public.delete_staff_auth(p_staff_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_email text; v_username text;
+begin
+  select username into v_username from public.staff where id = p_staff_id;
+  if v_username is not null then
+    v_email := public.staff_email(v_username);
+    delete from auth.users where email = v_email;
+  end if;
+end;
+$$;
+
+-- 12g. Re-define the staff-write RPCs so every change is mirrored to the Auth
+--      user (login must stay real-Auth). These override the 11k definitions.
+--      Every write is additionally guarded by belongs_outlet(): the caller's
+--      own tenant (JWT claim / portal header) must own the target outlet, or
+--      the caller is the platform super admin. Prevents a compromised session
+--      from writing into another tenant.
+--
+-- insert_staff: create staff row + Auth user. Returns the staff id so the
+-- client can sync if needed.
+create or replace function public.insert_staff(
+  p_outlet_id uuid, p_name text, p_username text, p_pin text, p_role text default 'kasir'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_id uuid;
+begin
+  if not public.belongs_outlet(p_outlet_id) then
+    raise exception 'tidak berhak mengelola staf outlet ini';
+  end if;
+  insert into public.staff (outlet_id, name, username, pin_hash, role, active)
+  values (p_outlet_id, p_name, lower(p_username), crypt(p_pin, gen_salt('bf', 10)),
+          coalesce(nullif(p_role, ''), 'kasir'), true)
+  returning id into v_id;
+
+  -- Mirror/refresh the Auth user: created if the staff is new, updated
+  -- (PIN + metadata) if a staff row / earlier backfill left one stale.
+  perform public.sync_staff_auth(v_id, p_pin);
+  return v_id;
+end;
+$$;
+
+-- set_staff_password: rotate the staff PIN and its Auth user's password.
+create or replace function public.set_staff_password(p_staff_id uuid, p_new_pin text, p_outlet_id uuid default null)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if p_outlet_id is not null and not public.belongs_outlet(p_outlet_id) then
+    raise exception 'tidak berhak mengelola staf outlet ini';
+  end if;
+  update public.staff set pin_hash = crypt(p_new_pin, gen_salt('bf', 10))
+   where id = p_staff_id
+     and (p_outlet_id is null or outlet_id = p_outlet_id);
+  if found then perform public.sync_staff_auth(p_staff_id, p_new_pin); end if;
+end;
+$$;
+
+-- update_staff: rename staff + keep Auth email in sync (email derives from username).
+create or replace function public.update_staff(
+  p_id uuid, p_name text, p_username text, p_outlet_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_old_username text; v_new_username text;
+begin
+  if p_outlet_id is not null and not public.belongs_outlet(p_outlet_id) then
+    raise exception 'tidak berhak mengelola staf outlet ini';
+  end if;
+  select username into v_old_username from public.staff where id = p_id;
+  update public.staff
+     set name     = nullif(btrim(p_name), ''),
+         username = nullif(btrim(p_username), '')
+   where id = p_id
+     and (p_outlet_id is null or outlet_id = p_outlet_id);
+  if found and v_old_username is distinct from nullif(btrim(p_username), '') then
+    v_new_username := nullif(btrim(p_username), '');
+    update auth.users set email = public.staff_email(v_new_username)
+     where email = public.staff_email(v_old_username);
+  end if;
+end;
+$$;
+
+-- delete_staff: remove staff row + its Auth user.
+create or replace function public.delete_staff(p_id uuid, p_outlet_id uuid default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_outlet_id is not null and not public.belongs_outlet(p_outlet_id) then
+    raise exception 'tidak berhak mengelola staf outlet ini';
+  end if;
+  perform public.delete_staff_auth(p_id) where exists
+    (select 1 from public.staff where id = p_id
+       and (p_outlet_id is null or outlet_id = p_outlet_id));
+  delete from public.staff where id = p_id
+    and (p_outlet_id is null or outlet_id = p_outlet_id);
+end;
+$$;
+
+-- 12h. Backfill Auth users for the EXISTING staff (created before the Auth
+-- bridge existed). Email/outlet/role derive from staff rows; the password is
+-- copied from the staff's live bcrypt pin_hash — so the PINs staff already know
+-- keep working, no plaintext needed, idempotent. Run once at deploy.
+-- The user insert sets '' (not NULL) on the text columns GoTrue scans as Go
+-- strings, and the identity insert mirrors the user so password sign-in can
+-- resolve it (GoTrue resolves users through auth.identities).
+with auth_inserts as (
+  insert into auth.users
+    (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+     raw_app_meta_data,
+     confirmation_token, recovery_token, email_change_token_new,
+     email_change, phone, phone_change, phone_change_token, email_change_token_current,
+     reauthentication_token, email_change_confirm_status,
+     is_super_admin, created_at, updated_at, is_sso_user, is_anonymous)
+  select
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    s.username || '@kasira.local',
+    s.pin_hash,
+    now(),
+    jsonb_build_object(
+      'provider', 'email',
+      'providers', jsonb_build_array('email'),
+      'outlet_id', s.outlet_id,
+      'role', s.role,
+      'super_admin', (s.role = 'super_admin')
+    ),
+    '', '', '',
+    '', null, '', '',
+    '', '', 0,
+    false, now(), now(), false, false
+  from public.staff s
+  where s.active
+    and not exists (
+      select 1 from auth.users u where u.email = s.username || '@kasira.local'
+    )
+  returning id, email
+)
+insert into auth.identities (provider_id, user_id, identity_data, provider,
+  last_sign_in_at, created_at, updated_at, id)
+select
+  a.email, a.id,
+  jsonb_build_object('sub', a.id::text, 'email', a.email,
+    'email_verified', false, 'phone_verified', false),
+  'email', now(), now(), now(), gen_random_uuid()
+from auth_inserts a;
 

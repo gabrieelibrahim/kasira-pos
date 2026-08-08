@@ -9,6 +9,10 @@ import { storageUrl } from './supabase.js'
 
 const CATEGORIES = ['Semua', 'Makanan', 'Minuman', 'Camilan']
 
+// Menu comes ONLY from the tenant's DB (via the shared store). There is no
+// hardcoded fallback — an outlet with zero menu items must show an empty
+// state, not a baked-in list that looks like another tenant's menu.
+
 // Table comes from the URL hash (#/meja?meja=5), not the query string.
 const tableFromParams = () => {
   const q = new URLSearchParams(window.location.hash.split('?')[1] || '')
@@ -21,19 +25,6 @@ const outletFromParams = () => {
   const q = new URLSearchParams(window.location.hash.split('?')[1] || '')
   return q.get('outlet') || null
 }
-
-const MENU = [
-  { id: 'nasi-goreng', name: 'Nasi Goreng Kampung', price: 42000, cat: 'Makanan', desc: 'Beras wangi, ayam suwir, telur, acar.', modifier: ['Level pedas', 'Tanpa bawang', 'Telur tambah'] },
-  { id: 'mie-goreng', name: 'Mie Goreng Spesial', price: 35000, cat: 'Makanan', desc: 'Mie kuning, bakso sapi, sayur, sambal.', modifier: ['Level pedas', 'Extra bakso'] },
-  { id: 'ayam-bakar', name: 'Ayam Bakar Madu', price: 54000, cat: 'Makanan', desc: 'Ayam bakar bumbu madu, sambal terasi.', modifier: ['Paha / Dada', 'Sambal terpisah'] },
-  { id: 'soto-betawi', name: 'Soto Betawi', price: 58000, cat: 'Makanan', desc: 'Kuah santan, daging sapi, kentang, tomat.', modifier: ['Level pedas', 'Kerupuk'] },
-  { id: 'es-kopi-susu', name: 'Es Kopi Susu Gula Aren', price: 28000, cat: 'Minuman', desc: 'Espresso, susu, gula aren.', modifier: ['Less ice', 'Extra shot', 'Tanpa gula'] },
-  { id: 'teh-lemon', name: 'Es Teh Lemon', price: 20000, cat: 'Minuman', desc: 'Teh hitam, lemon, es.', modifier: ['Less ice', 'Ekstra lemon'] },
-  { id: 'jus-alpukat', name: 'Jus Alpukat', price: 32000, cat: 'Minuman', desc: 'Alpukat segar, susu, cokelat.', modifier: ['Tanpa gula', 'Extra susu'] },
-  { id: 'kentang', name: 'Kentang Goreng', price: 32000, cat: 'Camilan', desc: 'Kentang crispy, saus tomat.', modifier: ['Saus terpisah', 'Extra saus'] },
-  { id: 'tahu-garam', name: 'Tahu Cabe Garam', price: 32000, cat: 'Camilan', desc: 'Tahu goreng, bawang, cabe.', modifier: ['Pedas gila'] },
-  { id: 'air-mineral', name: 'Air Mineral', price: 16000, cat: 'Minuman', desc: 'Air mineral kemasan.', modifier: [] },
-]
 
 function MenuCard({ item, onAdd }) {
   const name = item.name
@@ -94,13 +85,11 @@ function Customer() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [route])
 
-  // DB items use `category`; the local fallback MENU uses `cat`. Normalize so
-  // the category filter works for both sources.
+  // Menu comes only from the tenant's DB. DB items use `category`; normalize
+  // so the category filter works. Unavailable items stay hidden.
   const catOf = (m) => m.category || m.cat || 'Lainnya'
-  // DB items are hidden when unavailable; the local fallback MENU has no
-  // availability flag, so it always shows every item.
-  const visibleMenu = (menu.length ? menu : MENU).filter((m) => cat === 'Semua' || catOf(m) === cat)
-    .filter((m) => !menu.length || m.available !== false)
+  const visibleMenu = menu.filter((m) => cat === 'Semua' || catOf(m) === cat)
+    .filter((m) => m.available !== false)
 
   const addItem = (item, modifier = '') => {
     setCart((prev) => {
@@ -311,9 +300,13 @@ function Customer() {
         {CATEGORIES.map((c) => <button key={c} className={cat === c ? 'selected' : ''} onClick={() => setCat(c)}>{c}</button>)}
       </nav>
 
-      <section className="menu-grid">
-        {visibleMenu.map((item) => <MenuCard key={item.id} item={item} onAdd={addItem} />)}
-      </section>
+      {visibleMenu.length === 0 ? (
+        <div className="report-empty">Belum ada menu. Hubungi staf untuk memesan.</div>
+      ) : (
+        <section className="menu-grid">
+          {visibleMenu.map((item) => <MenuCard key={item.id} item={item} onAdd={addItem} />)}
+        </section>
+      )}
 
       {cart.length > 0 && (
         <div className="cart-bar">

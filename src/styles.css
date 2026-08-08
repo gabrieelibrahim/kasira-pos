@@ -79,7 +79,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .kds-note { margin: 0; padding: 8px 10px; border-radius: 7px; color: var(--ink-subtle); background: var(--surface-2); font-size: 12px; }
 .kds-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .status-dot-k { width: 7px; height: 7px; border-radius: 50%; }
-.status-dot-k.menunggu, .status-dot-k.menunggu-konfirmasi-kasir { background: var(--accent); }
+.status-dot-k.menunggu, .status-dot-k.menunggu-pembayaran, .status-dot-k.menunggu-konfirmasi-kasir { background: var(--accent); }
 .status-dot-k.diterima { background: var(--info); }
 .status-dot-k.sedang-disiapkan { background: var(--primary); }
 .status-dot-k.siap-diantar, .status-dot-k.selesai, .status-dot-k.diantar { background: var(--success); }

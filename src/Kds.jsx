@@ -27,7 +27,7 @@ function KdsCard({ order, onAdvance }) {
         <div className={`station-pill ${order.station}`}>{order.station === 'dapur' ? 'Dapur' : 'Bar'}</div>
         <span>{order.table} · #{order.num}</span>
       </div>
-      <div className="kds-status"><span className={`status-dot-k ${order.status.toLowerCase()}`} /> {order.status}</div>
+      <div className="kds-status"><span className={`status-dot-k ${order.status.toLowerCase().replace(/\s+/g, '-')}`} /> {order.status}</div>
       <div className="kds-lines-wrap">
         <ul className="kds-lines">
           {order.lines.map(([name, price, note]) => (

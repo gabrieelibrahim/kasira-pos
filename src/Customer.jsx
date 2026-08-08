@@ -139,7 +139,7 @@ function Customer() {
           </div>
           {myOrder && (
             <div className="track-status">
-              <span className={`status-dot-k ${myOrder.status.toLowerCase()}`} />
+              <span className={`status-dot-k ${myOrder.status.toLowerCase().replace(/\s+/g, '-')}`} />
               <div>
                 <b>{myOrder.status}</b>
                 <p>Perbarui otomatis saat kasir atau dapur mengubah status.</p>

@@ -174,12 +174,21 @@ export function StoreProvider({ children }) {
   const { user } = useAuth()
   const sessionOid = user?.role === 'super_admin' ? null : (user?.outletId || null)
 
+  // Monotonic token so only the MOST RECENT snapshot request is ever applied.
+  // Multiple in-flight snapshots share this store (boot loads the logged-in
+  // user's outlet while the customer portal loads a scanned QR's outlet) —
+  // without this guard the slower one clobbers the newer one and the portal
+  // can briefly show another tenant's menu on a cold scan.
+  const snapshotReq = useRef(0)
+
   // Load a full snapshot for one outlet: its profile + today's orders + menu +
   // tables. Returns true if the outlet exists (so the caller can show an error
   // on invalid QR outlet ids). Shared by the boot path and overrideOutletId.
   const loadSnapshot = async (id) => {
+    const req = ++snapshotReq.current
     const { data: out } = await supabase.from('outlets').select('*').eq('id', id).maybeSingle()
     if (!out) return false
+    if (req !== snapshotReq.current) return false // superseded by a newer request
     outletRef.current = id
     const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
       // All orders since the start of the local day so #num is correct and
@@ -188,6 +197,7 @@ export function StoreProvider({ children }) {
       supabase.from('menu_items').select('*').eq('outlet_id', id).order('name'),
       supabase.from('table_spots').select('*').eq('outlet_id', id).order('number'),
     ])
+    if (req !== snapshotReq.current) return false // still newest? only we apply
     setOutletId(id)
     setOutlet(out)
     setOrders(withOrderNums((o || []).map(normalizeOrder)))

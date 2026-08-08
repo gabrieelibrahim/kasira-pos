@@ -12,8 +12,14 @@ async function fetchTenant(id, pin) {
   return (data || []).find((t) => t.id === id) || null
 }
 
-function Stat({ label, value }) {
-  return <div className="tenant-stat"><b>{value}</b><span>{label}</span></div>
+function Stat({ label, value, tone = 'total', icon = 'report' }) {
+  const Icon = Ic[icon] || Ic.report
+  return (
+    <div className="stat-card">
+      <span className={`stat-icon ${tone}`}><Icon width="20" height="20" /></span>
+      <div><b>{value}</b><span>{label}</span></div>
+    </div>
+  )
 }
 
 function TenantDetail({ id, pin, onPinRequired }) {
@@ -82,13 +88,13 @@ function TenantDetail({ id, pin, onPinRequired }) {
 
       {t ? (
         <>
-          <div className="admin-stats">
-            <Stat label="Pendapatan total" value={money(t.total_revenue)} />
-            <Stat label="Order total" value={String(t.order_count)} />
-            <Stat label="Order hari ini" value={String(t.today_orders)} />
-            <Stat label="Meja" value={String(t.table_count)} />
-            <Stat label="Staf aktif" value={String(t.staff_count)} />
-            <Stat label="Menu" value={String(t.menu_count)} />
+          <div className="stats-row cards-6">
+            <Stat tone="avail" icon="report" label="Pendapatan total" value={money(t.total_revenue)} />
+            <Stat tone="total" icon="inbox" label="Order total" value={String(t.order_count)} />
+            <Stat tone="out" icon="clock" label="Order hari ini" value={String(t.today_orders)} />
+            <Stat tone="total" icon="tables" label="Meja" value={String(t.table_count)} />
+            <Stat tone="total" icon="menu" label="Staf aktif" value={String(t.staff_count)} />
+            <Stat tone="total" icon="menu" label="Menu" value={String(t.menu_count)} />
           </div>
 
           <div className="admin-two-col">

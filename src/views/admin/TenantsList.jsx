@@ -2,7 +2,6 @@
 // super-admin PIN) and renders each tenant's live usage in a table.
 
 import React, { useEffect, useState } from 'react'
-import { money } from '../../state.jsx'
 import { supabase } from '../../supabase.js'
 import { Ic } from '../../icons.jsx'
 
@@ -23,14 +22,7 @@ function TenantsList({ pin, onPinRequired }) {
 
   const open = (id) => { window.location.hash = '#/admin/tenants/' + id }
 
-  // Aggregate across all tenants for the summary row.
-  const totals = (rows || []).reduce((acc, t) => {
-    acc.rev += Number(t.total_revenue || 0)
-    acc.orders += Number(t.order_count || 0)
-    acc.today += Number(t.today_orders || 0)
-    acc.suspended += t.is_suspended ? 1 : 0
-    return acc
-  }, { rev: 0, orders: 0, today: 0, suspended: 0 })
+  const activeCount = (rows || []).filter((t) => !t.is_suspended).length
 
   return (
     <>
@@ -49,22 +41,18 @@ function TenantsList({ pin, onPinRequired }) {
         <div className="report-empty">Belum ada tenant. Buat yang pertama untuk memulai.</div>
       ) : (
         <>
-          <div className="stats-row cards-4">
+          <div className="stats-row cards-3">
             <div className="stat-card">
               <span className="stat-icon total"><Ic.tables width="20" height="20" /></span>
-              <div><b>{rows.length}</b><span>Total tenant · {totals.suspended} ditangguhkan</span></div>
+              <div><b>{rows.length}</b><span>Total tenant</span></div>
             </div>
             <div className="stat-card">
-              <span className="stat-icon total"><Ic.inbox width="20" height="20" /></span>
-              <div><b>{totals.orders}</b><span>Order total</span></div>
+              <span className="stat-icon avail"><Ic.checkCircle width="20" height="20" /></span>
+              <div><b>{activeCount}</b><span>Aktif</span></div>
             </div>
             <div className="stat-card">
-              <span className="stat-icon out"><Ic.clock width="20" height="20" /></span>
-              <div><b>{totals.today}</b><span>Order hari ini</span></div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon avail"><Ic.report width="20" height="20" /></span>
-              <div><b>{money(totals.rev)}</b><span>Pendapatan total</span></div>
+              <span className="stat-icon out"><Ic.power width="20" height="20" /></span>
+              <div><b>{rows.length - activeCount}</b><span>Ditangguhkan</span></div>
             </div>
           </div>
 
@@ -74,9 +62,7 @@ function TenantsList({ pin, onPinRequired }) {
               <span role="columnheader">Status</span>
               <span role="columnheader">Staf</span>
               <span role="columnheader">Meja</span>
-              <span role="columnheader">Order</span>
-              <span role="columnheader">Hari ini</span>
-              <span role="columnheader">Total</span>
+              <span role="columnheader">Menu</span>
             </div>
             {rows.map((t) => (
               <button type="button" key={t.id} className="tenant-row tenant-data" role="row" onClick={() => open(t.id)}>
@@ -87,9 +73,7 @@ function TenantsList({ pin, onPinRequired }) {
                 <span role="cell"><span className={`tenant-pill ${t.is_suspended ? 'bad' : 'ok'}`}>{t.is_suspended ? 'Ditangguhkan' : 'Aktif'}</span></span>
                 <span role="cell"><b className="num">{t.staff_count}</b></span>
                 <span role="cell"><b className="num">{t.table_count}</b></span>
-                <span role="cell"><b className="num">{t.order_count}</b></span>
-                <span role="cell"><b className="num">{String(t.today_orders)}</b></span>
-                <span role="cell" className="tenant-rev">{money(t.total_revenue)}</span>
+                <span role="cell"><b className="num">{t.menu_count}</b></span>
               </button>
             ))}
           </div>

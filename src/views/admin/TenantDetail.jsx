@@ -1,8 +1,8 @@
-// SaaS platform — single tenant detail: profile, live stats, recent orders,
-// and platform actions (suspend / activate / set reset PIN / delete).
+// SaaS platform — single tenant detail: profile, resource stats (staff /
+// tables / menu), and platform actions (suspend / activate / delete). No
+// sales or revenue data is shown here by design.
 
 import React, { useEffect, useState } from 'react'
-import { money } from '../../state.jsx'
 import { supabase } from '../../supabase.js'
 import { Ic } from '../../icons.jsx'
 
@@ -24,7 +24,6 @@ function Stat({ label, value, tone = 'total', icon = 'report' }) {
 
 function TenantDetail({ id, pin, onPinRequired }) {
   const [t, setT] = useState(null)       // tenant
-  const [orders, setOrders] = useState(null)
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
   const [confirmDel, setConfirmDel] = useState(false)
@@ -36,18 +35,10 @@ function TenantDetail({ id, pin, onPinRequired }) {
     try {
       const tenant = await fetchTenant(id, pin)
       setT(tenant)
-    } catch { onPinRequired(); return }
-    // Recent orders for this tenant (RLS is open; scoped by outlet_id).
-    try {
-      const start = new Date(); start.setHours(0, 0, 0, 0)
-      const { data } = await supabase.from('orders')
-        .select('*').eq('outlet_id', id)
-        .gte('created_at', start.toISOString()).order('created_at', { ascending: false }).limit(12)
-      setOrders(data || [])
-    } catch { setOrders([]) }
+    } catch { onPinRequired() }
   }
 
-  useEffect(() => { setT(null); setOrders(null); load() }, [id]) // eslint-disable-line
+  useEffect(() => { setT(null); load() }, [id]) // eslint-disable-line
 
   const act = async (fn, key, okMsg) => {
     if (busy) return
@@ -88,46 +79,25 @@ function TenantDetail({ id, pin, onPinRequired }) {
 
       {t ? (
         <>
-          <div className="stats-row cards-6">
-            <Stat tone="avail" icon="report" label="Pendapatan total" value={money(t.total_revenue)} />
-            <Stat tone="total" icon="inbox" label="Order total" value={String(t.order_count)} />
-            <Stat tone="out" icon="clock" label="Order hari ini" value={String(t.today_orders)} />
+          <div className="stats-row cards-3">
             <Stat tone="total" icon="tables" label="Meja" value={String(t.table_count)} />
             <Stat tone="total" icon="menu" label="Staf aktif" value={String(t.staff_count)} />
             <Stat tone="total" icon="menu" label="Menu" value={String(t.menu_count)} />
           </div>
 
-          <div className="admin-two-col">
-            <div className="admin-card">
-              <div className="section-title"><h3>Status & langganan</h3></div>
-              <div className="tenant-row-simple">
-                <span>Status</span>
-                <span className={`tenant-pill ${t.is_suspended ? 'bad' : 'ok'}`}>{t.is_suspended ? 'Ditangguhkan' : 'Aktif'}</span>
-              </div>
-              <div className="tenant-row-simple"><span>Langganan</span><b>{t.subscription_tier}</b></div>
-              <div className="tenant-row-simple"><span>Berakhir</span><b>{t.subscription_expires_at ? new Date(t.subscription_expires_at).toLocaleDateString('id-ID') : '—'}</b></div>
-              <div className="tenant-actions">
-                {t.is_suspended
-                  ? <button type="button" className="secondary-button" disabled={busy} onClick={() => act(() => supabase.rpc('activate_tenant', { p_outlet_id: id, p_super_pin: pin }), 'act', 'Tenant diaktifkan.')}><Ic.check width="15" height="15" /> Aktifkan</button>
-                  : <button type="button" className="reject-button" disabled={busy || t.is_suspended} onClick={() => act(() => supabase.rpc('suspend_tenant', { p_outlet_id: id, p_super_pin: pin }), 'act', 'Tenant ditangguhkan — staf tidak bisa login.')}><Ic.power width="14" height="14" /> Tangguhkan</button>}
-                <button type="button" className="row-action danger" disabled={busy} onClick={() => setConfirmDel(true)}><Ic.trash width="14" height="14" /> Hapus</button>
-              </div>
+          <div className="admin-card">
+            <div className="section-title"><h3>Status & langganan</h3></div>
+            <div className="tenant-row-simple">
+              <span>Status</span>
+              <span className={`tenant-pill ${t.is_suspended ? 'bad' : 'ok'}`}>{t.is_suspended ? 'Ditangguhkan' : 'Aktif'}</span>
             </div>
-
-            <div className="admin-card">
-              <div className="section-title"><h3>Order terakhir hari ini</h3></div>
-              {orders && orders.length === 0 ? (
-                <p className="muted-p">Belum ada order hari ini.</p>
-              ) : (
-                <ul className="admin-orders">
-                  {(orders || []).map((o) => (
-                    <li key={o.id}>
-                      <span>{o.table_label || 'Meja –'} · {o.status}</span>
-                      <b>{money(o.total)}</b>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div className="tenant-row-simple"><span>Langganan</span><b>{t.subscription_tier}</b></div>
+            <div className="tenant-row-simple"><span>Berakhir</span><b>{t.subscription_expires_at ? new Date(t.subscription_expires_at).toLocaleDateString('id-ID') : '—'}</b></div>
+            <div className="tenant-actions">
+              {t.is_suspended
+                ? <button type="button" className="secondary-button" disabled={busy} onClick={() => act(() => supabase.rpc('activate_tenant', { p_outlet_id: id, p_super_pin: pin }), 'act', 'Tenant diaktifkan.')}><Ic.check width="15" height="15" /> Aktifkan</button>
+                : <button type="button" className="reject-button" disabled={busy || t.is_suspended} onClick={() => act(() => supabase.rpc('suspend_tenant', { p_outlet_id: id, p_super_pin: pin }), 'act', 'Tenant ditangguhkan — staf tidak bisa login.')}><Ic.power width="14" height="14" /> Tangguhkan</button>}
+              <button type="button" className="row-action danger" disabled={busy} onClick={() => setConfirmDel(true)}><Ic.trash width="14" height="14" /> Hapus</button>
             </div>
           </div>
         </>

@@ -461,28 +461,28 @@ end;
 $$;
 
 -- 11j. Live tenant stats for the dashboard (single aggregate + gate).
+-- NOTE: this intentionally carries NO transaction / revenue data — the SaaS
+-- owner's dashboard is resource-only (staff / menu / tables). The return
+-- shape changed from an earlier revision, so we drop before (re)creating.
+drop function if exists public.outlet_stats(text);
 create or replace function public.outlet_stats(p_super_pin text)
 returns table (
-  id                         uuid,
-  name                       text,
-  created_at                 timestamptz,
-  is_suspended               boolean,
-  subscription_tier          text,
-  subscription_expires_at    timestamptz,
-  staff_count                bigint,
-  menu_count                 bigint,
-  table_count                bigint,
-  order_count                bigint,
-  total_revenue              numeric,
-  today_orders               bigint,
-  today_revenue              numeric
+  id                      uuid,
+  name                    text,
+  created_at              timestamptz,
+  is_suspended            boolean,
+  subscription_tier       text,
+  subscription_expires_at timestamptz,
+  staff_count             bigint,
+  menu_count              bigint,
+  table_count             bigint
 )
 language plpgsql
 security definer
 set search_path = public
 as $$
--- RETURNS TABLE out-params (created_at, today_orders, ...) collide with column
--- names referenced unqualified inside the aggregate subqueries; prefer columns.
+-- RETURNS TABLE out-params (created_at, ...) collide with column names
+-- referenced unqualified inside the aggregate subqueries; prefer columns.
 #variable_conflict use_column
 begin
   if not public.is_platform_admin(p_super_pin) then
@@ -490,19 +490,9 @@ begin
   end if;
   return query
   select
-    o.id,
-    o.name,
-    o.created_at,
-    o.is_suspended,
-    o.subscription_tier,
-    o.subscription_expires_at,
-    coalesce(s.staff_count, 0) as staff_count,
-    coalesce(m.menu_count, 0) as menu_count,
-    coalesce(t.table_count, 0) as table_count,
-    coalesce(ord.order_count, 0) as order_count,
-    coalesce(ord.total_revenue, 0) as total_revenue,
-    coalesce(ord.today_orders, 0) as today_orders,
-    coalesce(ord.today_revenue, 0) as today_revenue
+    o.id, o.name, o.created_at, o.is_suspended, o.subscription_tier, o.subscription_expires_at,
+    coalesce(s.staff_count, 0)::bigint, coalesce(m.menu_count, 0)::bigint,
+    coalesce(t.table_count, 0)::bigint
   from public.outlets o
   left join (
     select outlet_id, count(*) as staff_count
@@ -516,17 +506,6 @@ begin
     select outlet_id, count(*) as table_count
     from public.table_spots group by outlet_id
   ) t on t.outlet_id = o.id
-  left join (
-    select
-      outlet_id,
-      count(*)                                   as order_count,
-      sum(total)                                 as total_revenue,
-      count(*) filter (where created_at >= date_trunc('day', now())) as today_orders,
-      sum(total) filter (where created_at >= date_trunc('day', now())) as today_revenue
-    from public.orders
-    where status <> 'Ditolak'
-    group by outlet_id
-  ) ord on ord.outlet_id = o.id
   order by o.created_at;
 end;
 $$;

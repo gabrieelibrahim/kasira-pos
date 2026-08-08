@@ -186,7 +186,14 @@ export function StoreProvider({ children }) {
   // on invalid QR outlet ids). Shared by the boot path and overrideOutletId.
   const loadSnapshot = async (id) => {
     const req = ++snapshotReq.current
-    const { data: out } = await supabase.from('outlets').select('*').eq('id', id).maybeSingle()
+    // Explicit column list — never select '*' on outlets so the sensitive
+    // reset_pin columns can be revoked from anon/authenticated without breaking
+    // the public customer portal's outlet snapshot.
+    const { data: out } = await supabase
+      .from('outlets')
+      .select('id,name,address,phone,open_time,close_time,tax_rate,is_suspended,created_at,subscription_tier,subscription_expires_at')
+      .eq('id', id)
+      .maybeSingle()
     if (!out) return false
     if (req !== snapshotReq.current) return false // superseded by a newer request
     outletRef.current = id

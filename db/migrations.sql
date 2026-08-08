@@ -214,12 +214,16 @@ end;
 $$;
 
 -- 10. Table (QR meja) management: add + delete.
---     table_spots has no insert/delete RLS policy (wide-open select/update only),
---     so both writes go through SECURITY DEFINER RPCs.
---     add_table: insert a new spot, using the next free number if none given.
+--     table_spots has no insert policy and only a permissive DELETE policy added
+--     below, so both writes go through SECURITY DEFINER RPCs (delete is also
+--     RLS-authorized; a definer still respects RLS without a DELETE policy).
+--     add_table: insert a new empty spot, using the next free number if none.
 --                Raises if a spot with that number already exists.
---     delete_table: removes a spot. FK orders.table_spot_id is ON DELETE SET
---                NULL, so existing order history survives the table's removal.
+--     delete_table: removes a spot, scoped to the owning outlet. FK
+--                orders.table_spot_id is ON DELETE SET NULL, so existing order
+--                history survives the table's removal. The 1-arg legacy
+--                overload is DROPPED — it would make the client call ambiguous
+--                (PGRST203 "could not choose between overloads").
 
 create or replace function public.add_table(
   p_outlet_id uuid,
@@ -251,8 +255,13 @@ begin
 end;
 $$;
 
+-- The legacy 1-arg delete_table had no outlet scope and left a second overload
+-- that made client calls ambiguous; remove it.
+drop function if exists public.delete_table(uuid);
+
 create or replace function public.delete_table(
-  p_id uuid
+  p_id uuid,
+  p_outlet_id uuid default null
 )
 returns void
 language plpgsql
@@ -260,9 +269,18 @@ security definer
 set search_path = public
 as $$
 begin
-  delete from public.table_spots where id = p_id;
+  delete from public.table_spots where id = p_id
+    and (p_outlet_id is null or outlet_id = p_outlet_id);
 end;
 $$;
+
+-- table_spots has no INSERT policy (add_table definer handles it) and had no
+-- DELETE policy — under RLS even a definer's DELETE on table_spots was blocked
+-- ("cannot delete"). Add one so the def functions and direct client cleans can
+-- both remove rows.
+create policy "table_spots_delete" on public.table_spots
+  for delete to public
+  using (true);
 
 -- ===========================================================================
 -- 11. Multi-tenant SaaS: super_admin role + tenant (outlet) management.
@@ -570,14 +588,23 @@ begin
 end;
 $$;
 
-create or replace function public.delete_table(p_id uuid, p_outlet_id uuid default null)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  delete from public.table_spots where id = p_id
-    and (p_outlet_id is null or outlet_id = p_outlet_id);
-end;
-$$;
+-- 11l. Least-privilege grants on outlets. The app never reads the reset-PIN
+--      columns over REST (only the SECURITY DEFINER verify_reset_pin /
+--      set_outlet_reset_pin RPCs touch them), so an anon or authenticated key
+--      must NOT be able to select reset_pin / reset_pin_hash. A column-level
+--      revoke alone is inert while a table-level SELECT grant stands, so we
+--      drop the table grants and re-grant the explicit columns the app reads
+--      (matches state.jsx loadSnapshot / update outlet). Client writes ride on
+--      anon (app-level auth via RPCs), so UPDATE stays on the editable fields.
+revoke all on public.outlets from anon;
+revoke all on public.outlets from authenticated;
+
+grant select (id,name,address,phone,open_time,close_time,tax_rate,is_suspended,created_at,subscription_tier,subscription_expires_at)
+  on public.outlets to anon;
+grant update (name,address,phone,open_time,close_time,tax_rate,is_suspended,subscription_tier,subscription_expires_at)
+  on public.outlets to anon;
+grant select (id,name,address,phone,open_time,close_time,tax_rate,is_suspended,created_at,subscription_tier,subscription_expires_at)
+  on public.outlets to authenticated;
+grant update (name,address,phone,open_time,close_time,tax_rate,is_suspended,subscription_tier,subscription_expires_at)
+  on public.outlets to authenticated;
+

@@ -409,10 +409,12 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .access-denied .primary-button { width: auto; padding: 0 20px; }
 
 /* ===== SaaS Platform Admin (#/admin) ===== */
-.admin-shell { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100vh; background: var(--bg); }
+.admin-shell { display: block; min-height: 100vh; background: var(--bg); }
 .admin-shell-warn { display: block; }
 .admin-sidebar { position: fixed; inset: 0 auto 0 0; width: 244px; }
 .admin-content { min-width: 0; padding-left: 244px; }
+@media (max-width: 1100px) { .admin-sidebar { width: 218px; }.admin-content { padding-left: 218px; }.admin-topbar { padding: 0 26px; }.admin-page { padding: 35px 26px 50px; } }
+@media (max-width: 820px) { .admin-sidebar { width: 68px; }.admin-content { padding-left: 68px; }.admin-topbar { padding: 0 20px; }.admin-page { padding: 30px 20px 45px; }.admin-sidebar .nav-label { display: none; }.admin-sidebar .brand-lockup > div:last-child { display: none; } }
 .admin-topbar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 38px; border-bottom: 1px solid var(--border); background: oklch(1 0 0 / .86); backdrop-filter: blur(10px); }
 .admin-page { max-width: 1480px; margin: 0 auto; padding: 44px 38px 60px; }
 

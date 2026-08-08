@@ -167,6 +167,12 @@ export function StoreProvider({ children }) {
   // Live reference to the current outlet id so realtime callbacks (defined on
   // mount) can filter events without re-subscribing when the outlet changes.
   const outletRef = useRef(null)
+  // The store owner = the logged-in staff's outlet. Taken from AuthProvider
+  // (reactive) rather than localStorage at mount, so logout → login as another
+  // tenant re-snapshots that tenant's data. super_admin has no POS outlet (its
+  // stored outlet_id is a seed placeholder) → the store stays empty for them.
+  const { user } = useAuth()
+  const sessionOid = user?.role === 'super_admin' ? null : (user?.outletId || null)
 
   // Load a full snapshot for one outlet: its profile + today's orders + menu +
   // tables. Returns true if the outlet exists (so the caller can show an error
@@ -246,26 +252,37 @@ export function StoreProvider({ children }) {
       })
       .subscribe()
 
-    async function boot() {
-      const session = getStoredUser()
-      // super_admin has no outlet context (its stored outlet_id is a seed
-      // placeholder) — the platform dashboard drives its own data, and the POS
-      // store stays empty. Reloading the app while still logged in as a tenant
-      // uses the session outlet normally.
-      if (session?.role === 'super_admin' || !session?.outletId) {
-        if (mounted) setReady(true)
+    async function boot(oid) {
+      if (mounted) {
+        // Clear the previous tenant's data so the switch is never seen as a
+        // partial blend (e.g. A's menu next to B's tables) during the reload.
+        outletRef.current = null // stop realtime blending until the new snapshot lands
+        setOutletId(null)
+        setOutlet(null)
+        setOrders([])
+        setMenu([])
+        setTables([])
+        setReady(false)
+      }
+      if (!oid) {
+        if (mounted) setReady(true) // super_admin / no outlet → empty store
         return
       }
-      const ok = await loadSnapshot(session.outletId)
-      if (mounted && !ok) setReady(true)
+      const ok = await loadSnapshot(oid)
+      if (mounted && !ok) setReady(true) // outlet not found → show error state
     }
-    boot()
+
+    // Re-snapshot whenever the owning outlet changes (login as another tenant,
+    // or logout → login again). The realtime channel below is keyed once on
+    // mount; its callbacks survive by filtering on outletRef.current.
+    boot(sessionOid)
 
     return () => {
       mounted = false
       supabase.removeChannel(channel)
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionOid])
 
   const value = useMemo(() => {
     const update = async (id, patch) => {

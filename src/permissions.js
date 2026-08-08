@@ -5,8 +5,11 @@
 // wide-open for the anon-key customer portal.
 
 // Route → roles allowed to open it. Routes not listed are admin-only.
+// super_admin lives ONLY on the SaaS panel (#/admin) — it has no outlet, so
+// the POS store never loads for it and the staff views are off-limits.
 export const ROUTE_ROLES = {
   '':            ['admin', 'kasir', 'pelayan', 'pemilik'], // Ringkasan
+  admin:         ['super_admin'],                           // Panel SaaS (non-POS route)
   kasir:         ['admin', 'kasir', 'pelayan'],             // Order masuk
   meja:          ['admin', 'kasir', 'pelayan', 'pemilik'],  // Portal meja (tanpa meja = Tables)
   qr:            ['admin', 'kasir', 'pelayan', 'pemilik'],  // QR meja
@@ -24,6 +27,7 @@ export const ROLE_HOME = {
   pelayan: 'kasir',
   dapur: 'kds',
   pemilik: 'ringkasan',
+  super_admin: 'admin',
 }
 
 export const ROLE_LABELS = {
@@ -32,9 +36,10 @@ export const ROLE_LABELS = {
   pelayan: 'Pelayan',
   dapur: 'Dapur',
   pemilik: 'Pemilik',
+  super_admin: 'Super Admin',
 }
 
-export const ROLE_ORDER = ['admin', 'kasir', 'pelayan', 'dapur', 'pemilik']
+export const ROLE_ORDER = ['super_admin', 'admin', 'kasir', 'pelayan', 'dapur', 'pemilik']
 
 // Canonicalize a route alias into its ROOT route id (so access checks cover
 // 'settings', 'report', 'stok' etc.) and return the access list for that view.
@@ -48,6 +53,7 @@ const canonicalRoute = (route) => {
   if (['kds'].includes(root)) return 'kds'
   if (['laporan', 'report'].includes(root)) return 'laporan'
   if (['pengaturan', 'settings', 'setting'].includes(root)) return 'pengaturan'
+  if (root.startsWith('admin')) return 'admin'
   return root
 }
 

@@ -2,7 +2,7 @@
 // Orders, menu, and tables live in Postgres on the VPS; components read
 // them through this store and subscribe to changes via supabase channel.
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase.js'
 import { clearSession, getStoredUser, saveSession } from './auth.js'
 
@@ -164,14 +164,43 @@ export function StoreProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [outletId, setOutletId] = useState(null)
   const [outlet, setOutlet] = useState(null)
+  // Live reference to the current outlet id so realtime callbacks (defined on
+  // mount) can filter events without re-subscribing when the outlet changes.
+  const outletRef = useRef(null)
 
-  // Boot: load outlet + seed data, then subscribe to realtime changes.
+  // Load a full snapshot for one outlet: its profile + today's orders + menu +
+  // tables. Returns true if the outlet exists (so the caller can show an error
+  // on invalid QR outlet ids). Shared by the boot path and overrideOutletId.
+  const loadSnapshot = async (id) => {
+    const { data: out } = await supabase.from('outlets').select('*').eq('id', id).maybeSingle()
+    if (!out) return false
+    outletRef.current = id
+    const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
+      // All orders since the start of the local day so #num is correct and
+      // resets each day; yesterday's orders are out of the live board.
+      supabase.from('orders').select('*').eq('outlet_id', id).gte('created_at', startOfDay().toISOString()).order('created_at', { ascending: false }),
+      supabase.from('menu_items').select('*').eq('outlet_id', id).order('name'),
+      supabase.from('table_spots').select('*').eq('outlet_id', id).order('number'),
+    ])
+    setOutletId(id)
+    setOutlet(out)
+    setOrders(withOrderNums((o || []).map(normalizeOrder)))
+    setMenu(m || [])
+    setTables(t || [])
+    setReady(true)
+    return true
+  }
+
+  // Boot: staff sessions load their own outlet; everyone else (super_admin, a
+  // not-yet-realized customer session) resolves immediately with an empty store.
+  // The customer portal later switches outlet via overrideOutletId.
   useEffect(() => {
     let mounted = true
     const channel = supabase
       .channel('kasira-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
         if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
         const incoming = normalizeOrder(payload.new)
         setOrders((prev) => {
           const next = [incoming, ...prev.filter((o) => o.id !== incoming.id)]
@@ -180,49 +209,55 @@ export function StoreProvider({ children }) {
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
-        if (mounted) setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
+        if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
+        setOrders((prev) => prev.map((o) => (o.id === payload.new.id ? normalizeOrder(payload.new) : o)))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'menu_items' }, (payload) => {
-        if (mounted) setMenu((prev) => [...prev, payload.new])
+        if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
+        setMenu((prev) => [...prev, payload.new])
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_items' }, (payload) => {
-        if (mounted) setMenu((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
+        if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
+        setMenu((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'menu_items' }, (payload) => {
-        if (mounted) setMenu((prev) => prev.filter((m) => m.id !== payload.old.id))
+        if (!mounted) return
+        // payload.old carries the deleted row → outlet_id in realtime DELETE.
+        if (outletRef.current && payload.old.outlet_id !== outletRef.current) return
+        setMenu((prev) => prev.filter((m) => m.id !== payload.old.id))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'table_spots' }, (payload) => {
-        if (mounted) setTables((prev) => [...prev, payload.new].sort((a, b) => a.number - b.number))
+        if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
+        setTables((prev) => [...prev, payload.new].sort((a, b) => a.number - b.number))
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'table_spots' }, (payload) => {
-        if (mounted) setTables((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)))
+        if (!mounted) return
+        if (outletRef.current && payload.new.outlet_id !== outletRef.current) return
+        setTables((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'table_spots' }, (payload) => {
-        if (mounted) setTables((prev) => prev.filter((t) => t.id !== payload.old.id))
+        if (!mounted) return
+        if (outletRef.current && payload.old.outlet_id !== outletRef.current) return
+        setTables((prev) => prev.filter((t) => t.id !== payload.old.id))
       })
       .subscribe()
 
     async function boot() {
-      const { data: out } = await supabase.from('outlets').select('*').limit(1)
-      const oId = out?.[0]
-      if (mounted) {
-        setOutletId(oId?.id || null)
-        setOutlet(oId || null)
+      const session = getStoredUser()
+      // super_admin has no outlet context (its stored outlet_id is a seed
+      // placeholder) — the platform dashboard drives its own data, and the POS
+      // store stays empty. Reloading the app while still logged in as a tenant
+      // uses the session outlet normally.
+      if (session?.role === 'super_admin' || !session?.outletId) {
+        if (mounted) setReady(true)
+        return
       }
-
-      const [{ data: o }, { data: m }, { data: t }] = await Promise.all([
-        // All orders since the start of the local day so #num is correct and
-        // resets each day; yesterday's orders are out of the live board.
-        oId ? supabase.from('orders').select('*').gte('created_at', startOfDay().toISOString()).order('created_at', { ascending: false }) : { data: [] },
-        supabase.from('menu_items').select('*').order('name'),
-        supabase.from('table_spots').select('*').order('number'),
-      ])
-      if (mounted) {
-        setOrders(withOrderNums((o || []).map(normalizeOrder)))
-        setMenu(m || [])
-        setTables(t || [])
-        setReady(true)
-      }
+      const ok = await loadSnapshot(session.outletId)
+      if (mounted && !ok) setReady(true)
     }
     boot()
 
@@ -234,7 +269,9 @@ export function StoreProvider({ children }) {
 
   const value = useMemo(() => {
     const update = async (id, patch) => {
-      await supabase.from('orders').update(patch).eq('id', id)
+      // The id alone guarantees the row — but keep the outlet filter for
+      // defense-in-depth so a mis-scoped client can't touch another outlet's row.
+      await supabase.from('orders').update(patch).eq('id', id).eq('outlet_id', outletId)
       // optimistic local sync; realtime will confirm
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
     }
@@ -246,6 +283,14 @@ export function StoreProvider({ children }) {
       ready,
       outletId,
       outlet,
+      // Resolve the store to an outlet (customer portal reads the `outlet` QR
+      // param). id null → picks the first outlet (fallback for QR codes printed
+      // before this release, which have no outlet param). Bool = found.
+      resolveOutlet: async (id) => {
+        const oid = id || (await supabase.from('outlets').select('id').limit(1).maybeSingle())?.id || null
+        if (!oid) return false
+        return loadSnapshot(String(oid))
+      },
       updateOutlet: async (patch) => {
         if (!outletId) return
         const { data, error } = await supabase.from('outlets').update(patch).eq('id', outletId).select().single()
@@ -288,16 +333,16 @@ export function StoreProvider({ children }) {
           image: item.image || null,
         }
         if (id) {
-          await supabase.from('menu_items').update(patch).eq('id', id)
+          await supabase.from('menu_items').update(patch).eq('id', id).eq('outlet_id', outletId)
         } else {
           await supabase.from('menu_items').insert({ ...patch, outlet_id: outletId })
         }
       },
       toggleAvailability: async (id, available) => {
-        await supabase.from('menu_items').update({ available }).eq('id', id)
+        await supabase.from('menu_items').update({ available }).eq('id', id).eq('outlet_id', outletId)
       },
       deleteItem: async (id) => {
-        await supabase.from('menu_items').delete().eq('id', id)
+        await supabase.from('menu_items').delete().eq('id', id).eq('outlet_id', outletId)
       },
       // Refetch the table grid after an add/delete. The boot fetch + realtime
       // INSERT event normally keep `tables` in sync, but if realtime misses the
@@ -305,7 +350,7 @@ export function StoreProvider({ children }) {
       // never appears in the QR grid. A short, authoritative refetch after the
       // write closes that gap, so add/remove always reflect immediately.
       async refreshTables() {
-        const { data } = await supabase.from('table_spots').select('*').order('number')
+        const { data } = await supabase.from('table_spots').select('*').eq('outlet_id', outletId).order('number')
         if (data) setTables((data || []).sort((a, b) => (a.number ?? 0) - (b.number ?? 0)))
       },
       addTable: async (number) => {
@@ -313,13 +358,13 @@ export function StoreProvider({ children }) {
         await this.refreshTables()
       },
       deleteTable: async (id) => {
-        await supabase.rpc('delete_table', { p_id: id })
+        await supabase.rpc('delete_table', { p_id: id, p_outlet_id: outletId })
         await this.refreshTables()
       },
       submitCustomerOrder: async (order) => {
         const tableKey = normNum(order.table?.replace(/^meja\s*/i, ''))
         const spot = tables.find((t) => normNum(t.number ?? t.label) === tableKey)
-        if (spot?.id) await supabase.from('table_spots').update({ status: 'occupied' }).eq('id', spot.id)
+        if (spot?.id) await supabase.from('table_spots').update({ status: 'occupied' }).eq('id', spot.id).eq('outlet_id', outletId)
         const { data, error } = await supabase.from('orders').insert({
           outlet_id: outletId,
           table_spot_id: spot?.id || null,
@@ -338,22 +383,22 @@ export function StoreProvider({ children }) {
         return data.id
       },
       reportOrders: async () => {
-        const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: true })
+        const { data, error } = await supabase.from('orders').select('*').eq('outlet_id', outletId).order('created_at', { ascending: true })
         if (error) throw error
         return withOrderNums((data || []).map(normalizeOrder))
       },
       todayOrders: async () => {
         const start = new Date(); start.setHours(0, 0, 0, 0)
-        const { data, error } = await supabase.from('orders').select('*').gte('created_at', start.toISOString()).order('created_at', { ascending: false })
+        const { data, error } = await supabase.from('orders').select('*').eq('outlet_id', outletId).gte('created_at', start.toISOString()).order('created_at', { ascending: false })
         if (error) throw error
         return withOrderNums((data || []).map(normalizeOrder))
       },
       clearTable: async (spotId) => {
-        await supabase.from('table_spots').update({ status: 'empty' }).eq('id', spotId)
+        await supabase.from('table_spots').update({ status: 'empty' }).eq('id', spotId).eq('outlet_id', outletId)
         setTables((prev) => prev.map((t) => (t.id === spotId ? { ...t, status: 'empty' } : t)))
       },
       verifyResetPin: async (pin) => {
-        const { data, error } = await supabase.rpc('verify_reset_pin', { p_pin: String(pin ?? '').trim() })
+        const { data, error } = await supabase.rpc('verify_reset_pin', { p_pin: String(pin ?? '').trim(), p_outlet_id: outletId })
         if (error) throw error
         return Boolean(data)
       },
@@ -375,29 +420,31 @@ export function StoreProvider({ children }) {
         })
       },
       toggleStaff: async (id, active) => {
-        await supabase.rpc('toggle_staff', { p_staff_id: id, p_active: Boolean(active) })
+        await supabase.rpc('toggle_staff', { p_staff_id: id, p_active: Boolean(active), p_outlet_id: outletId })
       },
       updateStaff: async (id, payload) => {
         await supabase.rpc('update_staff', {
           p_id: id,
           p_name: payload.name,
           p_username: payload.username,
+          p_outlet_id: outletId,
         })
       },
       deleteStaff: async (id) => {
-        await supabase.rpc('delete_staff', { p_id: id })
+        await supabase.rpc('delete_staff', { p_id: id, p_outlet_id: outletId })
       },
       changeStaffPin: async (id, pin) => {
-        await supabase.rpc('set_staff_password', { p_staff_id: id, p_new_pin: String(pin) })
+        await supabase.rpc('set_staff_password', { p_staff_id: id, p_new_pin: String(pin), p_outlet_id: outletId })
       },
       changeResetPin: async (pin) => {
-        await supabase.rpc('set_outlet_reset_pin', { p_new_pin: String(pin) })
+        await supabase.rpc('set_outlet_reset_pin', { p_new_pin: String(pin), p_outlet_id: outletId })
       },
-      // Reset seluruh aplikasi dari nol: hapus permanen semua order + kosongkan semua meja.
+      // Reset seluruh aplikasi dari nol: hapus permanen semua transaksi + kosongkan semua meja
+      // (tercakup ke outlet aktif, aman per-tenant).
       resetAll: async () => {
-        const { error } = await supabase.from('orders').delete().not('id', 'is', null)
+        const { error } = await supabase.from('orders').delete().eq('outlet_id', outletId)
         if (error) throw error
-        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).not('id', 'is', null)
+        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).eq('outlet_id', outletId)
         if (terr) throw terr
         setOrders([])
         setTables((prev) => prev.map((t) => ({ ...t, status: 'empty' })))
@@ -409,11 +456,11 @@ export function StoreProvider({ children }) {
           .filter((o) => [STATUS.PAYMENT, STATUS.CASHIER, STATUS.SENT, STATUS.PREP, STATUS.READY, STATUS.DELIVERED].includes(o.status))
           .map((o) => o.id)
         if (active.length) {
-          const { error } = await supabase.from('orders').update({ status: STATUS.DONE }).in('id', active)
+          const { error } = await supabase.from('orders').update({ status: STATUS.DONE }).in('id', active).eq('outlet_id', outletId)
           if (error) throw error
           setOrders((prev) => prev.map((o) => (active.includes(o.id) ? { ...o, status: STATUS.DONE } : o)))
         }
-        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).not('id', 'is', null)
+        const { error: terr } = await supabase.from('table_spots').update({ status: 'empty' }).eq('outlet_id', outletId)
         if (terr) throw terr
         setTables((prev) => prev.map((t) => ({ ...t, status: 'empty' })))
       },

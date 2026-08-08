@@ -15,6 +15,13 @@ const tableFromParams = () => {
   return q.get('meja') || q.get('table') || '01'
 }
 
+// Tenant comes from the URL hash as `outlet=<uuid>` (added this release). It's
+// how a public (no-session) portal knows which tenant's menu/orders to load.
+const outletFromParams = () => {
+  const q = new URLSearchParams(window.location.hash.split('?')[1] || '')
+  return q.get('outlet') || null
+}
+
 const MENU = [
   { id: 'nasi-goreng', name: 'Nasi Goreng Kampung', price: 42000, cat: 'Makanan', desc: 'Beras wangi, ayam suwir, telur, acar.', modifier: ['Level pedas', 'Tanpa bawang', 'Telur tambah'] },
   { id: 'mie-goreng', name: 'Mie Goreng Spesial', price: 35000, cat: 'Makanan', desc: 'Mie kuning, bakso sapi, sayur, sambal.', modifier: ['Level pedas', 'Extra bakso'] },
@@ -55,7 +62,7 @@ function MenuCard({ item, onAdd }) {
 }
 
 function Customer() {
-  const { orders, menu, submitCustomerOrder } = useStore()
+  const { orders, menu, submitCustomerOrder, resolveOutlet } = useStore()
   const [table] = useState(tableFromParams)
   const [route, setRoute] = useState('menu') // menu | cart | checkout | order
   const [cat, setCat] = useState('Semua')
@@ -64,7 +71,23 @@ function Customer() {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [placedId, setPlacedId] = useState(null)
+  // Public portal has no session → the store outlet must come from the URL.
+  const [outletResolved, setOutletResolved] = useState(false)
+  const [outletOk, setOutletOk] = useState(true)
   const tableName = `Meja ${table}`
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const ok = await resolveOutlet(outletFromParams())
+        if (mounted) { setOutletOk(ok); setOutletResolved(true) }
+      } catch {
+        if (mounted) { setOutletOk(false); setOutletResolved(true) }
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   // customer order = the order this session just placed
   const myOrder = useMemo(() => orders.find((o) => o.id === placedId) || null, [orders, placedId])
@@ -123,6 +146,25 @@ function Customer() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Resolve the tenant from the QR `outlet` param before rendering anything.
+  // Keeps loading until resolved, then shows a clear error if the outlet id is
+  // bogus (a hand-typed URL), otherwise renders the menu as usual.
+  if (!outletResolved) {
+    return <main className="customer"><div className="customer-shell"><div className="order-track"><span className="live-dot" /><div><h1>{tableName}</h1><p>Memuat menu…</p></div></div></div></main>
+  }
+  if (!outletOk) {
+    return (
+      <main className="customer">
+        <div className="customer-shell">
+          <div className="order-track"><span className="live-dot" /><div><h1>Menu tidak ditemukan</h1><p>{tableName}</p></div></div>
+          <section className="track-lines">
+            <p className="muted-p">Restoran ini tidak ditemukan. Periksa kembali kode QR atau minta bantuan staf.</p>
+          </section>
+        </div>
+      </main>
+    )
   }
 
   if (route === 'order') {

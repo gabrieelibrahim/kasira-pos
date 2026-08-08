@@ -16,7 +16,7 @@ import { Ic } from './icons.jsx'
 const isLive = (o) => o.status !== STATUS.DONE && o.status !== STATUS.REJECTED
 
 function Qr() {
-  const { tables, orders, addTable, deleteTable } = useStore()
+  const { tables, orders, addTable, deleteTable, outletId } = useStore()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
@@ -76,7 +76,9 @@ function Qr() {
         <section className="qr-grid">
           {tables.map((t) => {
             const n = String(t.number ?? '').padStart(2, '0')
-            const url = `${window.location.origin}/#/meja?meja=${n}`
+            // The outlet id tells the public portal which tenant this table
+            // belongs to. Immutable for the life of the tenant.
+            const url = `${window.location.origin}/#/meja?meja=${n}&outlet=${outletId || ''}`
             const blocked = orders.some((o) => isLive(o) && String(o.table || '').replace(/^meja\s*/i, '') === String(t.number))
             return (
               <article className="qr-card" key={t.id}>

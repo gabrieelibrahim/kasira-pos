@@ -407,3 +407,47 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .access-denied h1 { margin: 4px 0 0; font-size: 24px; }
 .access-denied p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
 .access-denied .primary-button { width: auto; padding: 0 20px; }
+
+/* ===== SaaS Platform Admin (#/admin) ===== */
+.admin-shell { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100vh; background: var(--bg); }
+.admin-shell-warn { display: block; }
+.admin-sidebar { position: fixed; inset: 0 auto 0 0; width: 244px; }
+.admin-content { min-width: 0; padding-left: 244px; }
+.admin-topbar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 38px; border-bottom: 1px solid var(--border); background: oklch(1 0 0 / .86); backdrop-filter: blur(10px); }
+.admin-page { max-width: 1480px; margin: 0 auto; padding: 44px 38px 60px; }
+
+/* Tenant list table */
+.tenant-table { display: grid; gap: 3px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); overflow: hidden; }
+.tenant-row { display: grid; grid-template-columns: minmax(200px, 1.6fr) 1fr .5fr .5fr .5fr .6fr .7fr; gap: 12px; align-items: center; padding: 0 16px; }
+.tenant-head { min-height: 40px; color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; background: var(--surface-2); }
+.tenant-data { width: 100%; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--ink-subtle); text-align: left; font-size: 13px; cursor: pointer; transition: background .18s; }
+.tenant-data:hover { background: var(--primary-soft); }
+.tenant-data b { font-variant-numeric: tabular-nums; }
+.tenant-name { min-width: 0; }
+.tenant-name b, .tenant-name small { display: block; }
+.tenant-name b { font-size: 14px; color: var(--ink); }
+.tenant-name small { margin-top: 2px; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tenant-rev { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tenant-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.tenant-pill.ok { color: var(--success); background: var(--success-soft); }
+.tenant-pill.bad { color: var(--danger); background: var(--danger-soft); }
+
+/* Admin layout components */
+.admin-card { padding: 20px 22px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-1); }
+.admin-card .section-title { margin-bottom: 14px; }
+.admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.tenant-stat { padding: 14px 16px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-1); }
+.tenant-stat b, .tenant-stat span { display: block; }
+.tenant-stat b { font-size: 20px; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tenant-stat span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.admin-two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.tenant-row-simple { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+.tenant-row-simple b { color: var(--ink-subtle); font-weight: 600; }
+.tenant-actions { display: flex; gap: 10px; margin-top: 18px; }
+.tenant-actions .reject-button { width: auto; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; }
+.admin-orders { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-orders li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); font-size: 12px; }
+.admin-orders li span { color: var(--muted); }
+.admin-orders li b { font-variant-numeric: tabular-nums; }
+.report-empty { padding: 46px 20px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--muted); text-align: center; font-size: 13px; }
+.muted-p { color: var(--muted); font-size: 13px; }

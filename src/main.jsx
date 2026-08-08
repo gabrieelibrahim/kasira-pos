@@ -17,6 +17,7 @@ import Menu from './views/Menu'
 import Report from './views/Report'
 import Settings from './views/Settings'
 import Tables from './views/Tables'
+import AdminDashboard from './views/admin/AdminDashboard'
 import { AuthProvider, StoreProvider, useAuth } from './state.jsx'
 import { canView } from './permissions.js'
 import Login from './Login.jsx'
@@ -64,6 +65,7 @@ function App() {
   if (route === 'pengaturan' || route === 'settings' || route === 'setting') return <Settings />
   if (route === 'kasir') return <Cashier />
   if (route === 'meja' || route === 'pelanggan') return hasTable ? <Customer /> : <Tables />
+  if (route.startsWith('admin')) return <AdminDashboard />
   return <Dashboard />
 }
 

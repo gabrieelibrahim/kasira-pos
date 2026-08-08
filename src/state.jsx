@@ -301,12 +301,18 @@ export function StoreProvider({ children }) {
       outletId,
       outlet,
       // Resolve the store to an outlet (customer portal reads the `outlet` QR
-      // param). id null → picks the first outlet (fallback for QR codes printed
-      // before this release, which have no outlet param). Bool = found.
+      // param). id null/missing → only falls back to the first outlet when the
+      // system has exactly ONE tenant (legacy QR prints that carry no param).
+      // With multiple tenants, a missing/unknown id fails honestly instead of
+      // silently loading some other tenant's menu. Bool = found.
       resolveOutlet: async (id) => {
-        const oid = id || (await supabase.from('outlets').select('id').limit(1).maybeSingle())?.id || null
-        if (!oid) return false
-        return loadSnapshot(String(oid))
+        if (id) return loadSnapshot(String(id))
+        const { count } = await supabase.from('outlets').select('id', { count: 'exact', head: true })
+        if (count === 1) {
+          const { data } = await supabase.from('outlets').select('id').limit(1).maybeSingle()
+          if (data?.id) return loadSnapshot(String(data.id))
+        }
+        return false
       },
       updateOutlet: async (patch) => {
         if (!outletId) return

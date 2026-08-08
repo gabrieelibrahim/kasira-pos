@@ -28,3 +28,6 @@ yarn-error.log*
 
 # Vite cache
 .vite/
+
+# DB backups/dumps — contain real customer & staff data; keep local only
+db/backup/

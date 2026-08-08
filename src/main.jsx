@@ -19,7 +19,7 @@ import Settings from './views/Settings'
 import Tables from './views/Tables'
 import AdminDashboard from './views/admin/AdminDashboard'
 import { AuthProvider, StoreProvider, useAuth } from './state.jsx'
-import { canView } from './permissions.js'
+import { canView, ROLE_HOME } from './permissions.js'
 import Login from './Login.jsx'
 import './styles.css'
 
@@ -40,7 +40,7 @@ function AccessDenied() {
 
 function App() {
   const [route, setRoute] = useState(routeFromHash)
-  const { user } = useAuth()
+  const { user, ready } = useAuth()
 
   useEffect(() => {
     const onHashChange = () => setRoute(routeFromHash())
@@ -53,9 +53,21 @@ function App() {
   if (isCustomer) return <Customer />
 
   // Protected: everything else requires a logged-in staff member, and the
-  // role must be allowed to open the requested view.
+  // role must be allowed to open the requested view. `ready` blocks rendering
+  // until the stored blob is reconciled against the real Auth session, so a
+  // stale blob never flashes AccessDenied. A logged-in role hitting a view it
+  // can't open is redirected to its home (e.g. super_admin on '#/' → '#/admin');
+  // only an impossible route shows AccessDenied.
+  if (!ready) return null
   if (!user) return <Login />
-  if (!canView(user.role, route)) return <AccessDenied />
+  if (!canView(user.role, route)) {
+    const home = ROLE_HOME[user.role] || ''
+    if (home !== route) {
+      window.location.hash = '#/' + home
+      return null
+    }
+    return <AccessDenied />
+  }
 
   const hasTable = /[?&](meja|table)=/.test(window.location.hash)
   if (route === 'kds') return <Kds />

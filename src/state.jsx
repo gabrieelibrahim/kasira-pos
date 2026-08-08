@@ -54,6 +54,32 @@ const AuthContext = createContext(null)
 // routing, restored synchronously so there's no async flash on reload.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser())
+  // `ready` gates rendering until the stored blob is reconciled against the
+  // real Supabase Auth session, so a stale blob never flashes AccessDenied.
+  const [ready, setReady] = useState(false)
+
+  // Reconcile the app user against the REAL Supabase Auth session on mount.
+  // The stored blob (kasira.staff.session) is only a cache — for staff it also
+  // predates the Auth migration, so a stale blob must never gate the UI. If a
+  // valid session exists, re-derive role/outletId from the JWT app_metadata
+  // (fresher than the blob); if it's gone (signed out / expired), clear the
+  // blob and fall through to the Login screen instead of a dead AccessDenied.
+  useEffect(() => {
+    let alive = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return
+      if (data.session) {
+        const u = userFromAuth(data.session, getStoredUser())
+        saveSession(u)
+        setUser(u)
+      } else {
+        clearSession()
+        setUser(null)
+      }
+      setReady(true)
+    })
+    return () => { alive = false }
+  }, [])
 
   const login = async (username, pin) => {
     const email = `${String(username ?? '').trim().toLowerCase()}@kasira.local`
@@ -71,7 +97,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const value = useMemo(() => ({ user, login, logout }), [user])
+  const value = useMemo(() => ({ user, ready, login, logout }), [user, ready])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
